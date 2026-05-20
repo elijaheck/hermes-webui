@@ -103,17 +103,3 @@ def test_i18n_coverage():
     assert desc_count >= 11, f"Expected ≥11 locales, found {desc_count}"
     assert label_count == desc_count, \
         f"Label ({label_count}) and desc ({desc_count}) counts must match"
-
-
-def test_settings_session_tracking():
-    """Settings open/close lifecycle must track hidden_tabs for discard revert."""
-    # _beginSettingsPanelSession snapshots hidden_tabs
-    begin_block = PANELS_JS[PANELS_JS.find("function _beginSettingsPanelSession"):]
-    begin_body = begin_block[:begin_block.find("\nfunction ", 1) or 2000]
-    assert "_settingsHiddenTabsOnOpen" in begin_body
-
-    # _applySavedSettingsUi updates the baseline on full save
-    apply_block = PANELS_JS[PANELS_JS.find("function _applySavedSettingsUi"):]
-    apply_body = apply_block[:apply_block.find("\nfunction ", 1) or 5000]
-    assert "_settingsHiddenTabsOnOpen" in apply_body, \
-        "_applySavedSettingsUi must update _settingsHiddenTabsOnOpen after full save"

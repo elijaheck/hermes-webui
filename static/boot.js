@@ -284,9 +284,11 @@ function expandSidebar(){
   _syncSidebarAria();
 })();
 // ── Boot-time tab visibility ────────────────────────────────────────────────
-// Apply hidden tabs from localStorage before first paint. If the active tab
-// is hidden, switch focus to chat. Runs after DOM is ready (unlike theme/skin
-// flash-prevention, tab elements aren't available in <head>).
+// Apply hidden tabs from localStorage. The primary flash-prevention is an
+// inline <script> in index.html (after sidebar-nav) that runs synchronously
+// before first paint. This IIFE is a secondary fallback: it ensures consistency
+// after panels.js is loaded and handles the active-tab switch. No-op if
+// panels.js hasn't loaded yet (typeof guard).
 (function _restoreTabVisibility(){
   try{
     if(typeof _applyTabVisibility==='function'&&typeof _getHiddenTabs==='function'){

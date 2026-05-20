@@ -152,7 +152,6 @@ function _beginSettingsPanelSession() {
   _settingsThemeOnOpen = localStorage.getItem('hermes-theme') || 'dark';
   _settingsSkinOnOpen = localStorage.getItem('hermes-skin') || 'default';
   _settingsFontSizeOnOpen = localStorage.getItem('hermes-font-size') || 'default';
-  _settingsHiddenTabsOnOpen = _getHiddenTabs().slice();
   _pendingSettingsTargetPanel = null;
   if (_settingsAppearanceAutosaveTimer) {
     clearTimeout(_settingsAppearanceAutosaveTimer);
@@ -5110,7 +5109,6 @@ let _settingsHermesDefaultModelOnOpen = '';
 let _settingsSection = 'conversation';
 let _currentSettingsSection = 'conversation';
 let _settingsAppearanceAutosaveTimer = null;
-let _settingsHiddenTabsOnOpen = null; // track hidden_tabs at open time for discard revert
 let _settingsAppearanceAutosaveRetryPayload = null;
 let _settingsPreferencesAutosaveTimer = null;
 let _settingsPreferencesAutosaveRetryPayload = null;
@@ -5135,6 +5133,8 @@ function _applyTabVisibility(hidden){
     var panel=el.dataset.panel;
     if(!panel)return;
     var shouldHide=hidden.indexOf(panel)!==-1;
+    // Never hide always-visible panels (chat, settings) even if present in hidden_tabs
+    if(_ALWAYS_VISIBLE_TABS.has(panel)) shouldHide=false;
     el.classList.toggle('nav-tab-hidden',shouldHide);
   });
   // If the currently active tab is hidden, switch to chat
@@ -5342,7 +5342,6 @@ function _rememberAppearanceSaved(payload){
   _settingsThemeOnOpen=payload.theme||localStorage.getItem('hermes-theme')||'dark';
   _settingsSkinOnOpen=payload.skin||localStorage.getItem('hermes-skin')||'default';
   _settingsFontSizeOnOpen=payload.font_size||localStorage.getItem('hermes-font-size')||'default';
-  _settingsHiddenTabsOnOpen=Array.isArray(payload.hidden_tabs)?payload.hidden_tabs:[];
 }
 
 function _scheduleAppearanceAutosave(){
@@ -6477,7 +6476,6 @@ function _applySavedSettingsUi(saved, body, opts){
   _settingsHermesDefaultModelOnOpen=body.default_model||_settingsHermesDefaultModelOnOpen||'';
   // Sync window._defaultModel so newSession() uses the just-saved default without a reload (#908).
   if(body.default_model) window._defaultModel=body.default_model;
-  _settingsHiddenTabsOnOpen=_getHiddenTabs().slice();
   if(typeof clearMessageRenderCache==='function') clearMessageRenderCache();
   renderMessages();
   if(typeof syncTopbar==='function') syncTopbar();
