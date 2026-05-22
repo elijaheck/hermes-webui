@@ -3,6 +3,12 @@
 
 ## [Unreleased]
 
+## [v0.51.117] — 2026-05-22 — Release CO (stage-pr2766 — 1-PR — in-flight recovery storage quota-safe)
+
+### Fixed
+
+- **PR #2766** by @george-andraws — Make in-flight recovery storage quota-safe so a full browser `localStorage` budget no longer blocks chat submission with `QuotaExceededError: Failed to execute 'setItem' on 'Storage': Setting the value of 'hermes-webui-inflight' exceeded the quota.` The fix has four parts: (1) compact recovery snapshots before writing to keep only recent messages, tool calls, uploaded-file metadata, stream id, and updated timestamp; (2) truncate individual large strings per field (`60000` chars default) and prune the serialized payload (`1500000` chars default); (3) catch quota errors specifically on `markInflight()`, drop the larger `hermes-webui-inflight-state` key, then retry the tiny marker write; (4) expose 5 new configurable settings (`inflight_state_max_sessions`, `_max_messages`, `_max_tool_calls`, `_max_string_chars`, `_max_json_chars`) with int-range validation so operators can tune the budget. Self-healing on the very first chat submit after upgrade for users with already-quota-exhausted storage — no manual reload required. Graceful degradation if storage is still too full even after compaction (clears recovery snapshots but never blocks chat submit).
+
 ## [v0.51.116] — 2026-05-22 — Release CN (stage-pr2676 — 1-PR — per-skill enable/disable toggle in Skills panel, CLI-parity with `hermes skills config`)
 
 ### Added
