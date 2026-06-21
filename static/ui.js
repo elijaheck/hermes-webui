@@ -5918,7 +5918,13 @@ function showPromptDialog(opts={}){
     input.value=prefill;input.placeholder=opts.placeholder||'';
     input.autocomplete='off';input.spellcheck=false;
   }
-  if(cancelBtn) cancelBtn.textContent=opts.cancelLabel||t('cancel');
+  if(cancelBtn){
+    // A prior showConfirmDialog({hideCancel:true}) (e.g. the outside-symlink info
+    // dialog, #4581) may have hidden the shared Cancel button; always restore it
+    // so a subsequent prompt keeps its Cancel affordance.
+    cancelBtn.style.display='';
+    cancelBtn.textContent=opts.cancelLabel||t('cancel');
+  }
   if(confirmBtn){
     confirmBtn.textContent=opts.confirmLabel||t('create');
     confirmBtn.classList.toggle('danger',!!opts.danger);
