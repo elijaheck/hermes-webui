@@ -241,7 +241,7 @@ def web_push_status() -> dict:
 
 
 def _notification_payload(title: str, body: str, *, session_id: str | None = None) -> dict:
-    url = f"/session/{quote(str(session_id or '').strip(), safe='')}" if session_id else "./"
+    url = f"session/{quote(str(session_id or '').strip(), safe='')}" if session_id else "./"
     return {
         "title": str(title or "Hermes"),
         "options": {

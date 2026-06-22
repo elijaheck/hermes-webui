@@ -102,7 +102,7 @@ def test_subscription_store_round_trip_and_stale_prune(monkeypatch, tmp_path):
         "https://push.example/live",
         "https://push.example/dead",
     ]
-    assert calls[0]["data"]["options"]["data"]["url"].endswith("/session/session-123")
+    assert calls[0]["data"]["options"]["data"]["url"] == "session/session-123"
     assert calls[0]["vapid_private_key"] == "private-key"
     assert calls[0]["vapid_claims"]["sub"] == "mailto:test@example.com"
     assert calls[0]["timeout"] == web_push._WEB_PUSH_TIMEOUT_SECONDS
