@@ -92,7 +92,7 @@ def remove_subscription(endpoint: str) -> bool:
 def _get_pywebpush_impl():
     try:
         from pywebpush import WebPushException, webpush
-    except Exception:
+    except ImportError:
         return None, None
     return webpush, WebPushException
 

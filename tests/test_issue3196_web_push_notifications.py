@@ -166,6 +166,35 @@ def test_push_routes_fail_closed_when_server_not_ready(monkeypatch):
     assert _payload(subscribe_handler)["error"] == "Web Push is not configured"
 
 
+def test_push_status_reports_unavailable_when_pywebpush_missing(monkeypatch):
+    import api.config as config
+    import api.routes as routes
+    import api.web_push as web_push
+
+    monkeypatch.setattr(routes, "_check_csrf", lambda handler: True)
+    monkeypatch.setattr(config, "web_push_configured", lambda: True)
+    monkeypatch.setattr(web_push, "_get_pywebpush_impl", lambda: (None, None))
+
+    status_handler = _JSONHandler()
+    assert routes.handle_get(status_handler, SimpleNamespace(path="/api/push/status", query="")) is not False
+    assert status_handler.status == 200
+    assert _payload(status_handler) == {
+        "enabled": False,
+        "configured": True,
+        "dependency_available": False,
+    }
+
+    subscribe_handler = _JSONHandler({"subscription": _subscription("https://push.example/browser")})
+    assert routes.handle_post(subscribe_handler, SimpleNamespace(path="/api/push/subscribe")) is not False
+    assert subscribe_handler.status == 409
+    assert _payload(subscribe_handler)["error"] == "Web Push is not configured"
+
+    sent = web_push.send_web_push(
+        web_push._notification_payload("Response complete", "Task finished", session_id="session-123")
+    )
+    assert sent == 0
+
+
 def test_bg_task_complete_producer_fans_out_web_push(monkeypatch):
     import api.background_process as background_process
     import api.web_push as web_push
@@ -277,7 +306,8 @@ def test_static_sources_cover_closed_app_push_flow():
     assert STREAMING_SRC.count("_notify_response_complete_web_push(session_id, _answer)") == 1
     assert "notify_approval_required(session_key, head)" in ROUTE_APPROVALS_SRC
     assert "notify_clarify_required(session_key, entry.data)" in CLARIFY_SRC
-    assert "pywebpush>=2.0" in REQUIREMENTS
+    assert "pip install pywebpush" in REQUIREMENTS
+    assert "\npywebpush>=2.0\n" not in REQUIREMENTS
     for key in [
         "web_push_enable_btn",
         "web_push_disable_btn",
