@@ -145,6 +145,7 @@ def test_push_routes_support_status_subscribe_and_delete(monkeypatch, tmp_path):
     assert _payload(subscribe_handler)["subscription"]["endpoint"] == "https://push.example/browser"
     set_cookie = dict(subscribe_handler.response_headers).get("Set-Cookie")
     assert set_cookie and "hermes_push_owner=" in set_cookie
+    assert f"Max-Age={web_push._PUSH_OWNER_COOKIE_MAX_AGE_SECONDS}" in set_cookie
     cookie_header = set_cookie.split(";", 1)[0]
     assert [sub["endpoint"] for sub in web_push.list_subscriptions()] == ["https://push.example/browser"]
     assert _payload(subscribe_handler)["subscription"]["owner"]

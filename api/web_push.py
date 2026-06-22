@@ -16,6 +16,7 @@ from urllib.parse import quote
 logger = logging.getLogger(__name__)
 _PUSH_STORE_NAME = "webui_push_subscriptions.json"
 _PUSH_OWNER_COOKIE_NAME = "hermes_push_owner"
+_PUSH_OWNER_COOKIE_MAX_AGE_SECONDS = 86400 * 365
 _STORE_LOCK = threading.Lock()
 _WEB_PUSH_TIMEOUT_SECONDS = 10
 
@@ -110,6 +111,7 @@ def ensure_push_owner_cookie(handler) -> tuple[str, str | None]:
     cookie = SimpleCookie()
     cookie[_PUSH_OWNER_COOKIE_NAME] = owner
     cookie[_PUSH_OWNER_COOKIE_NAME]["httponly"] = True
+    cookie[_PUSH_OWNER_COOKIE_NAME]["max-age"] = str(_PUSH_OWNER_COOKIE_MAX_AGE_SECONDS)
     cookie[_PUSH_OWNER_COOKIE_NAME]["samesite"] = "Lax"
     cookie[_PUSH_OWNER_COOKIE_NAME]["path"] = "/"
     try:
