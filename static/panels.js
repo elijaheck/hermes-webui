@@ -4614,7 +4614,14 @@ function _setMemoryHeaderButtons(mode) {
   const cancelBtn = $('btnCancelMemoryDetail');
   const saveBtn = $('btnSaveMemoryDetail');
   const meta = _memorySectionMeta(_currentMemorySection);
-  if (mode === 'read' && _currentMemorySection !== 'external_notes' && !meta.readOnly) { if (header) header.style.display = 'flex'; show(editBtn); hide(cancelBtn); hide(saveBtn); }
+  if (mode === 'read') {
+    // Any read view has a populated title → header must be visible. Only the
+    // Edit affordance is gated on the section being editable (read-only
+    // sections like Project Context / External Notes still show the header).
+    if (header) header.style.display = 'flex';
+    if (_currentMemorySection !== 'external_notes' && !meta.readOnly) show(editBtn); else hide(editBtn);
+    hide(cancelBtn); hide(saveBtn);
+  }
   else if (mode === 'edit') { if (header) header.style.display = 'flex'; hide(editBtn); show(cancelBtn); show(saveBtn); }
   else { if (header) header.style.display = 'none'; hide(editBtn); hide(cancelBtn); hide(saveBtn); }
 }
@@ -5788,7 +5795,7 @@ function _renderProfileConceptHelp(activeName){
   if (empty) empty.style.display = 'none';
   _profileMode = 'read';
   _currentProfileDetail = null;
-  _setProfileHeaderButtons('empty');
+  _setProfileHeaderButtons('help');
 }
 
 function _renderProfileDetail(p, activeName){
@@ -5848,6 +5855,11 @@ function _setProfileHeaderButtons(mode, p, activeName){
   } else if (mode === 'create') {
     if (header) header.style.display = 'flex';
     hide(actBtn); hide(delBtn); show(cancelBtn); show(saveBtn);
+  } else if (mode === 'help') {
+    // Read-only help/concept view: title is populated, so show the header but
+    // hide every action button (no profile to act on).
+    if (header) header.style.display = 'flex';
+    [actBtn, delBtn, cancelBtn, saveBtn].forEach(hide);
   } else {
     if (header) header.style.display = 'none';
     [actBtn, delBtn, cancelBtn, saveBtn].forEach(hide);
