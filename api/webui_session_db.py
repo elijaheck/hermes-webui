@@ -51,6 +51,8 @@ _METADATA_FIELDS = frozenset(
         "context_length",
         "threshold_tokens",
         "last_prompt_tokens",
+        "compression_recovery",
+        "recommended_recovery_action",
         "truncation_watermark",
         "truncation_boundary",
         "gateway_routing",

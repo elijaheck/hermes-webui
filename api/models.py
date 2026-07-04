@@ -1051,6 +1051,8 @@ class Session:
                  context_engine_state=None,
                  context_length=None, threshold_tokens=None,
                  last_prompt_tokens=None,
+                 compression_recovery=None,
+                 recommended_recovery_action=None,
                  truncation_watermark=None,
                  truncation_boundary=None,
                  gateway_routing=None, gateway_routing_history=None,
@@ -1102,6 +1104,8 @@ class Session:
         self.context_length = context_length
         self.threshold_tokens = threshold_tokens
         self.last_prompt_tokens = last_prompt_tokens
+        self.compression_recovery = compression_recovery if isinstance(compression_recovery, dict) else {}
+        self.recommended_recovery_action = recommended_recovery_action
         self.truncation_watermark = truncation_watermark
         self.truncation_boundary = truncation_boundary
         self.gateway_routing = gateway_routing if isinstance(gateway_routing, dict) else None
@@ -1172,6 +1176,7 @@ class Session:
             'context_engine', 'compression_anchor_engine', 'compression_anchor_mode',
             'compression_anchor_details', 'context_engine_state',
             'context_length', 'threshold_tokens', 'last_prompt_tokens',
+            'compression_recovery', 'recommended_recovery_action',
             'truncation_watermark',
             'truncation_boundary',
             'gateway_routing', 'gateway_routing_history', 'llm_title_generated', 'manual_title',
@@ -1419,6 +1424,8 @@ class Session:
             'context_length': self.context_length,
             'threshold_tokens': self.threshold_tokens,
             'last_prompt_tokens': self.last_prompt_tokens,
+            'compression_recovery': self.compression_recovery,
+            'recommended_recovery_action': self.recommended_recovery_action,
             'gateway_routing': self.gateway_routing,
             'gateway_routing_history': self.gateway_routing_history,
             'manual_title': self.manual_title,

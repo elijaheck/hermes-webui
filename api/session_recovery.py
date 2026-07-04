@@ -484,6 +484,8 @@ def _state_db_row_to_sidecar(row: dict) -> dict:
         'context_length': None,
         'threshold_tokens': None,
         'last_prompt_tokens': None,
+        'compression_recovery': {},
+        'recommended_recovery_action': None,
         'gateway_routing': None,
         'gateway_routing_history': [],
         'llm_title_generated': False,
