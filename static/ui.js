@@ -14982,7 +14982,11 @@ function renderMessages(options){
   // intermediate never reaches the screen. Only re-anchors a pre-wipe tail-follower left short
   // of the settled max — an unpinned reader parked in history is never moved (orthogonal to
   // the unpinned jump-back class). See _reanchorPinnedTailAfterRender for the full rationale.
-  queueMicrotask(()=>_reanchorPinnedTailAfterRender(_preWipeNearTail));
+  // (typeof guards mirror the _deferClearProgrammaticScroll call below so standalone
+  // renderMessages() test harnesses that don't define these helpers still run.)
+  if(typeof queueMicrotask==='function' && typeof _reanchorPinnedTailAfterRender==='function'){
+    queueMicrotask(()=>_reanchorPinnedTailAfterRender(_preWipeNearTail));
+  }
   _recycleStash.clear();
   if(typeof _deferClearProgrammaticScroll==='function') _deferClearProgrammaticScroll(160);
 }

@@ -206,6 +206,17 @@ def test_source_locks_call_site_and_settled_max_write():
     # microtask runs after the render sync stack flushes layout to the settled height but
     # before paint. A bare synchronous call reads the mid-settle height and is a no-op.
     assert "queueMicrotask(()=>_reanchorPinnedTailAfterRender(_preWipeNearTail));" in UI_JS
+    # The call is typeof-guarded so a standalone renderMessages() node harness (which does
+    # not define queueMicrotask / _reanchorPinnedTailAfterRender) does not throw a
+    # ReferenceError when it evals the extracted renderMessages body.
+    assert (
+        "if(typeof queueMicrotask==='function' && "
+        "typeof _reanchorPinnedTailAfterRender==='function'){" in UI_JS
+    ), (
+        "the queueMicrotask re-anchor must be typeof-guarded (mirroring the "
+        "_deferClearProgrammaticScroll guard) so harnesses that eval renderMessages "
+        "without these helpers defined don't ReferenceError"
+    )
     # Guard against regressing to a synchronous call.
     assert "\n  _reanchorPinnedTailAfterRender(_preWipeNearTail);" not in UI_JS, (
         "the re-anchor must be scheduled via queueMicrotask, not called synchronously "
