@@ -53,7 +53,9 @@ from api.usage import prompt_cache_hit_percent
 from api.models import (
     _is_empty_partial_activity_message,
     _evict_sessions_over_cap,
+    clear_process_wakeup_pause,
     get_state_db_session_messages,
+    record_process_wakeup_provider_unavailable_pause,
     reconciled_state_db_messages_for_session,
 )
 from api.session_ops import mark_session_title_generated, session_has_manual_title
@@ -8717,7 +8719,15 @@ def _run_agent_streaming(
                             _err_type,
                             _err_hint,
                         )
+                        _pending_source = getattr(s, 'pending_user_source', None) or 'webui'
                         _materialize_pending_user_turn_before_error(s)
+                        if _pending_source == 'process_wakeup':
+                            record_process_wakeup_provider_unavailable_pause(
+                                s,
+                                classification=_err_type,
+                                model=getattr(s, 'model', None) or resolved_model or model,
+                                provider=getattr(s, 'model_provider', None) or resolved_provider,
+                            )
                         s.active_stream_id = None
                         s.pending_user_message = None
                         s.pending_attachments = []
@@ -9188,6 +9198,7 @@ def _run_agent_streaming(
                         logger.debug("Failed to append cancelled turn journal event", exc_info=True)
                     put('cancel', _cancel_event_payload('Cancelled by user'))
                     return
+                clear_process_wakeup_pause(s, reason='run_completed')
                 with _stream_writeback_stage(_writeback_timings, "session_save"):
                     s.save()
                 if cancel_event.is_set():
@@ -9797,7 +9808,15 @@ def _run_agent_streaming(
                     )
                     return
 
+                _pending_source = getattr(s, 'pending_user_source', None) or 'webui'
                 _materialize_pending_user_turn_before_error(s)
+                if _pending_source == 'process_wakeup':
+                    record_process_wakeup_provider_unavailable_pause(
+                        s,
+                        classification=_exc_type,
+                        model=getattr(s, 'model', None) or resolved_model or model,
+                        provider=getattr(s, 'model_provider', None) or resolved_provider,
+                    )
                 s.active_stream_id = None
                 s.pending_user_message = None
                 s.pending_attachments = []

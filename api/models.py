@@ -1100,6 +1100,7 @@ class Session:
                  enabled_toolsets=None,
                  composer_draft=None,
                  anchor_activity_scenes=None,
+                 process_wakeup_pause=None,
                  **kwargs):
         self.session_id = session_id or uuid.uuid4().hex[:12]
         self.title = title
@@ -1171,6 +1172,7 @@ class Session:
         self.enabled_toolsets = enabled_toolsets  # List[str] or None — per-session toolset override
         self.composer_draft = composer_draft if isinstance(composer_draft, dict) else {}
         self.anchor_activity_scenes = anchor_activity_scenes if isinstance(anchor_activity_scenes, dict) else {}
+        self.process_wakeup_pause = process_wakeup_pause if isinstance(process_wakeup_pause, dict) else {}
         raw_message_count = kwargs.get('message_count')
         parsed_message_count = None
         if raw_message_count is not None:
@@ -1231,6 +1233,7 @@ class Session:
             'worktree_path', 'worktree_branch', 'worktree_repo_root', 'worktree_created_at',
             'is_cli_session', 'source_tag', 'raw_source', 'session_source', 'source_label', 'read_only',
             'enabled_toolsets', 'composer_draft', 'anchor_activity_scenes',
+            'process_wakeup_pause',
         ]
         meta = {k: getattr(self, k, None) for k in METADATA_FIELDS}
         meta['message_count'] = len(self.messages or [])
@@ -1537,10 +1540,163 @@ class Session:
             'read_only': self.read_only,
             'enabled_toolsets': self.enabled_toolsets,
             'composer_draft': self.composer_draft if isinstance(self.composer_draft, dict) else {},
+            'process_wakeup_pause': self.process_wakeup_pause if isinstance(self.process_wakeup_pause, dict) else {},
             'is_streaming': _is_streaming_session(
                 self.active_stream_id, active_stream_ids
             ) if include_runtime else False,
         }
+
+
+PROCESS_WAKEUP_PROVIDER_UNAVAILABLE_TYPES = frozenset({
+    'credential_pool_empty',
+})
+PROCESS_WAKEUP_PAUSE_ERROR = 'process_wakeup_paused'
+_PROCESS_WAKEUP_PAUSE_VERSION = 1
+
+
+def _process_wakeup_pause_part(value) -> str:
+    return str(value or '').strip().lower()
+
+
+def _process_wakeup_pause_int(value, default: int = 0) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed >= 0 else default
+
+
+def _process_wakeup_pause_float(value, default: float) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def _process_wakeup_pause_key(model=None, provider=None, classification=None) -> dict:
+    return {
+        'model': _process_wakeup_pause_part(model),
+        'provider': _process_wakeup_pause_part(provider),
+        'classification': _process_wakeup_pause_part(classification),
+    }
+
+
+def process_wakeup_pause_matches(session, *, model=None, provider=None, classification=None) -> bool:
+    """Return True when the session has an active pause for this wakeup lane."""
+    pause = getattr(session, 'process_wakeup_pause', None)
+    if not isinstance(pause, dict) or not pause.get('paused'):
+        return False
+    expected = _process_wakeup_pause_key(model, provider, classification)
+    for key, expected_value in expected.items():
+        if key == 'classification' and not expected_value:
+            continue
+        if _process_wakeup_pause_part(pause.get(key)) != expected_value:
+            return False
+    return True
+
+
+def clear_process_wakeup_pause(session, *, reason: str = '') -> bool:
+    """Clear any persisted process-wakeup pause metadata.
+
+    Returns True when a pause was present. Callers decide whether and how to
+    persist, because some paths are already inside a larger session writeback.
+    """
+    pause = getattr(session, 'process_wakeup_pause', None)
+    if not isinstance(pause, dict) or not pause:
+        return False
+    session.process_wakeup_pause = {}
+    if reason:
+        session._last_process_wakeup_pause_clear_reason = str(reason)
+    return True
+
+
+def clear_process_wakeup_pause_if_model_changed(session, *, model=None, provider=None) -> bool:
+    """Reset a wakeup pause when the resolved model/provider lane changed."""
+    pause = getattr(session, 'process_wakeup_pause', None)
+    if not isinstance(pause, dict) or not pause.get('paused'):
+        return False
+    current = _process_wakeup_pause_key(model, provider, pause.get('classification'))
+    if (
+        _process_wakeup_pause_part(pause.get('model')) == current['model']
+        and _process_wakeup_pause_part(pause.get('provider')) == current['provider']
+    ):
+        return False
+    return clear_process_wakeup_pause(session, reason='model_or_provider_changed')
+
+
+def record_process_wakeup_provider_unavailable_pause(
+    session,
+    *,
+    classification: str,
+    model=None,
+    provider=None,
+) -> dict | None:
+    """Record the first visible provider-unavailable wakeup failure.
+
+    The persisted object is deliberately metadata-only: it records the lane and
+    counters, not the wakeup prompt or provider response body, so it remains
+    auditable without copying process output or credentials into diagnostics.
+    """
+    classification = _process_wakeup_pause_part(classification)
+    if classification not in PROCESS_WAKEUP_PROVIDER_UNAVAILABLE_TYPES:
+        return None
+    now = time.time()
+    key = _process_wakeup_pause_key(model, provider, classification)
+    existing = getattr(session, 'process_wakeup_pause', None)
+    same_window = (
+        isinstance(existing, dict)
+        and existing.get('paused')
+        and _process_wakeup_pause_part(existing.get('model')) == key['model']
+        and _process_wakeup_pause_part(existing.get('provider')) == key['provider']
+        and _process_wakeup_pause_part(existing.get('classification')) == key['classification']
+    )
+    visible_error_count = 1
+    suppressed_count = 0
+    first_paused_at = now
+    if same_window:
+        first_paused_at = _process_wakeup_pause_float(existing.get('first_paused_at'), now)
+        visible_error_count = _process_wakeup_pause_int(
+            existing.get('visible_error_count'),
+            1,
+        ) + 1
+        suppressed_count = _process_wakeup_pause_int(existing.get('suppressed_count'), 0)
+    session.process_wakeup_pause = {
+        'version': _PROCESS_WAKEUP_PAUSE_VERSION,
+        'paused': True,
+        'source': 'process_wakeup',
+        'classification': key['classification'],
+        'model': key['model'],
+        'provider': key['provider'],
+        'first_paused_at': first_paused_at,
+        'last_error_at': now,
+        'visible_error_count': visible_error_count,
+        'suppressed_count': suppressed_count,
+    }
+    return session.process_wakeup_pause
+
+
+def suppress_process_wakeup_for_provider_pause(
+    session,
+    *,
+    model=None,
+    provider=None,
+    classification: str = 'credential_pool_empty',
+) -> dict | None:
+    """Increment suppression metadata if this automatic wakeup is paused."""
+    if not process_wakeup_pause_matches(
+        session,
+        model=model,
+        provider=provider,
+        classification=classification,
+    ):
+        return None
+    pause = dict(getattr(session, 'process_wakeup_pause', {}) or {})
+    pause['suppressed_count'] = _process_wakeup_pause_int(pause.get('suppressed_count'), 0) + 1
+    pause['last_suppressed_at'] = time.time()
+    pause['last_suppressed_reason'] = 'provider_unavailable_pause'
+    session.process_wakeup_pause = pause
+    return pause
 
 def _get_profile_home(profile) -> Path:
     """Resolve the hermes agent home directory for the given profile.

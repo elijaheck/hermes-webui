@@ -8671,6 +8671,9 @@ from api.models import (
     _profile_has_user_projects,
     is_cron_session,
     is_safe_session_id,
+    PROCESS_WAKEUP_PAUSE_ERROR,
+    clear_process_wakeup_pause_if_model_changed,
+    suppress_process_wakeup_for_provider_pause,
 )
 
 
@@ -19855,6 +19858,7 @@ def start_session_turn(
     msg = str(message or "").strip()
     if not msg:
         return {"error": "message is required", "_status": 400}
+    turn_source = str(source or "process_wakeup").strip() or "process_wakeup"
     try:
         s = get_session(session_id)
     except KeyError:
@@ -19883,6 +19887,53 @@ def start_session_turn(
         profile_config=_pp_cfg,
         prefer_cached_catalog=True,
     )
+    if clear_process_wakeup_pause_if_model_changed(
+        s,
+        model=model,
+        provider=model_provider,
+    ):
+        try:
+            s.save(touch_updated_at=False)
+        except Exception:
+            logger.debug(
+                "failed to persist process_wakeup pause reset for session %s",
+                session_id,
+                exc_info=True,
+            )
+    _paused_wakeup = None
+    if turn_source == "process_wakeup":
+        _paused_wakeup = suppress_process_wakeup_for_provider_pause(
+            s,
+            model=model,
+            provider=model_provider,
+            classification='credential_pool_empty',
+        )
+    if _paused_wakeup is not None:
+        try:
+            PENDING_BG_TASK_COMPLETIONS.discard(s.session_id)
+        except Exception:
+            logger.debug(
+                "failed to discard pending bg-task marker for paused wakeup %s",
+                session_id,
+                exc_info=True,
+            )
+        try:
+            s.save(touch_updated_at=False)
+        except Exception:
+            logger.debug(
+                "failed to persist process_wakeup suppression for session %s",
+                session_id,
+                exc_info=True,
+            )
+        return {
+            "error": PROCESS_WAKEUP_PAUSE_ERROR,
+            "message": (
+                "Automatic process wakeups are paused for this session because "
+                "the provider credential pool is unavailable."
+            ),
+            "process_wakeup_pause": _paused_wakeup,
+            "_status": 409,
+        }
     resp = _start_run(
         s,
         msg=msg,
@@ -19891,7 +19942,7 @@ def start_session_turn(
         model=model,
         model_provider=model_provider,
         normalized_model=normalized_model,
-        source="process_wakeup",
+        source=turn_source,
         route="start_session_turn",
     )
 
