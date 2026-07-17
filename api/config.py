@@ -8479,7 +8479,14 @@ class StreamChannel:
                         try:
                             q.get_nowait()
                         except queue.Empty:
-                            break  # cap 0 defensive guard; never reached
+                            # A concurrent consumer drained the queue between
+                            # our Full and get_nowait — the queue now has space,
+                            # so retry the put instead of dropping `item`. This
+                            # path runs under self._lock with a freshly-created
+                            # queue (no concurrent consumer), so it is not
+                            # reached in practice, but `continue` is the
+                            # correct, race-safe rule (see the broadcast path).
+                            continue
                         replayed_dropped += 1
             if replayed_dropped:
                 self._subscriber_dropped_total += replayed_dropped
@@ -8566,7 +8573,15 @@ class StreamChannel:
                     try:
                         q.get_nowait()
                     except queue.Empty:
-                        break  # cap 0 defensive guard; never reached
+                        # A concurrent consumer (the SSE handler thread)
+                        # drained the queue between our Full and get_nowait.
+                        # The queue now has space — retry the put so `item` is
+                        # delivered. `break` here would silently discard `item`,
+                        # and if `item` is a terminal frame (stream_end/error/
+                        # cancel) the subscriber never receives it and the client
+                        # stays attached indefinitely (spinner-forever). Having
+                        # space is exactly the condition we want, so continue.
+                        continue
                     broadcast_dropped += 1
         if broadcast_dropped:
             with self._lock:

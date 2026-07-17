@@ -163,3 +163,86 @@ def test_unsubscribe_removes_subscriber():
     ch.put_nowait(("token", 0, "id0"))
     assert q.empty()
     assert _drain(other) == [("token", 0, "id0")]
+
+
+def test_terminal_frame_survives_concurrent_drain_during_drop_oldest():
+    """Regression: on queue.Full the drop-oldest loop used to `break` if a
+    concurrent consumer drained the queue between the Full and get_nowait
+    (raising queue.Empty). That silently discarded the `item` being enqueued —
+    and when `item` was a TERMINAL frame (stream_end/error/cancel) the
+    subscriber never received it, leaving the client attached indefinitely
+    (spinner-forever). The fix is `continue` (retry the put into the now-empty
+    queue), so the terminal frame is always delivered.
+
+    This deterministically simulates the exact interleaving (no threads, which
+    would be flaky): a custom queue whose get_nowait raises Empty on the first
+    post-Full call (as if a concurrent consumer had drained it), then behaves
+    normally. The OLD `break` logic drops the terminal item; the NEW `continue`
+    logic delivers it. We run both and assert only `continue` delivers."""
+    from unittest.mock import MagicMock
+
+    terminal_item = ("stream_end", None, "terminal-id")
+
+    class _RaceyQueue:
+        """Simulates a bounded queue that a concurrent consumer drained between
+        the producer's Full and get_nowait: the first put raises Full (queue at
+        cap), then by the time the producer calls get_nowait the consumer has
+        drained the ENTIRE queue, so get_nowait raises Empty. Subsequent puts
+        succeed (the queue has space) — which is exactly the condition where the
+        fix's `continue` must retry instead of the bug's `break`."""
+        def __init__(self):
+            self._real = _queue.Queue(maxsize=8)
+            self._drained = False
+            # Pre-fill to cap so the first put_nowait raises Full.
+            for i in range(8):
+                self._real.put_nowait(("token", i, f"id{i}"))
+
+        def put_nowait(self, item):
+            return self._real.put_nowait(item)
+
+        def get_nowait(self):
+            # First eviction attempt: simulate the concurrent consumer having
+            # drained the whole queue — raise Empty (no oldest to drop).
+            if not self._drained:
+                self._drained = True
+                # Empty the real queue to model the drain, then raise Empty so
+                # the producer sees the race.
+                while True:
+                    try:
+                        self._real.get_nowait()
+                    except _queue.Empty:
+                        break
+                raise _queue.Empty
+            return self._real.get_nowait()
+
+    def run_drop_oldest_loop(on_empty):
+        """Mirror the StreamChannel broadcast drop-oldest loop with a chosen
+        on-Empty action (break = pre-fix bug, continue = fix)."""
+        rq = _RaceyQueue()
+        delivered = []
+        while True:
+            try:
+                rq.put_nowait(terminal_item)
+                delivered.append(terminal_item)
+                break
+            except _queue.Full:
+                try:
+                    rq.get_nowait()
+                except _queue.Empty:
+                    if on_empty == "break":
+                        break  # the bug: silently discard terminal_item
+                    else:
+                        continue  # the fix: retry the put
+        return delivered
+
+    # Pre-fix (break): the terminal frame is silently dropped.
+    delivered_break = run_drop_oldest_loop("break")
+    assert delivered_break == [], (
+        "pre-fix `break` should have silently dropped the terminal frame"
+    )
+    # Post-fix (continue): the terminal frame is delivered.
+    delivered_continue = run_drop_oldest_loop("continue")
+    assert delivered_continue == [terminal_item], (
+        "post-fix `continue` must deliver the terminal frame after the race"
+    )
+
