@@ -261,6 +261,11 @@ If an AI assistant is helping with install, reinstall, bootstrap, provider setup
 - EckOS uses `gpt-realtime-2.1` with semantic VAD and full-duplex WebRTC audio.
   Spoken agent work enters the existing Hermes session and cannot bypass native
   approval or clarification cards.
+- Voice can ask Hermes to inspect the Mac, request guarded native-app interaction,
+  or hand work to Codex/Claude/other agents. A requested live Screen panel shows
+  same-origin ScreenCaptureKit snapshots while Hermes acts. Read-only inspection is
+  immediate; every state-changing Computer Use step goes through the normal Hermes
+  approval card.
 - Remote phones need an authenticated HTTPS origin for microphone permission.
   See [ARCHITECTURE.md](ARCHITECTURE.md#eckos-realtime-voice) and
   [TESTING.md](TESTING.md#eckos-realtime-voice-verification) for lifecycle,

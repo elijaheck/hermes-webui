@@ -141,7 +141,7 @@ first, then the neighboring session, stream, action-required, delegated-session,
 and mobile tests:
 
 ```bash
-./scripts/test.sh -q tests/test_eckos_mode.py
+./scripts/test.sh -q tests/test_eckos_mode.py tests/test_eckos_realtime.py tests/test_eckos_computer.py
 ./scripts/test.sh -q \
   tests/test_issue4812_session_sse_stream.py \
   tests/test_run_journal_routes.py \
@@ -1838,6 +1838,19 @@ origin for microphone permission.
   unknown panel fails closed.
 - [ ] Spoken Hermes work appears in the same durable session after reload.
 - [ ] Visible approval or clarification cards cannot be resolved by voice.
+- [ ] “What is on my Mac screen?” opens the Screen panel, shows a same-origin
+  capture, and produces a read-only Hermes `computer_use` observation.
+- [ ] The browser network log never contains `127.0.0.1:8731` or a local screen
+  path; the screen response is authenticated and `Cache-Control: no-store`.
+- [ ] Ask for a harmless native-app action. Capture/list-apps may run immediately,
+  but click, type, key, scroll, drag, and focus each show the normal Hermes approval
+  card. Deny once and confirm no action occurs; approve once and verify a fresh
+  post-action capture.
+- [ ] Say “give this to Codex” and “ask Claude”; Hermes records each request in the
+  same transcript, shows delegated-agent progress, and does not claim a provider was
+  used unless the Hermes transcript confirms it.
+- [ ] Quit EckOSMac or revoke Screen Recording, then request the screen. The Screen
+  panel gives a recoverable error while voice and normal Hermes chat keep working.
 - [ ] Conversation quality: invent a setting, character, conflict, and scene
   hook; verify concise continuity and honest delegation to Hermes.
 - [ ] Removing `OPENAI_API_KEY` yields a recoverable 503 voice error while the

@@ -58,10 +58,17 @@ The native Hermes ownership chain is unchanged in EckOS mode:
 - The one `#approvalCard` and one `#clarifyCard` in the shared shell remain the only
   action-required surfaces. `static/eckos.js` cannot respond to either one.
 - `static/eckos.js` is a presentation-only registry over existing DOM projections.
-  It creates no fetch, SSE, store, session, or agent bridge. Unknown panel IDs fail closed
+  It creates no durable store, session, or parallel agent bridge. Unknown panel IDs fail closed
   before presentation state is changed.
-- Voice uses WebRTC through the server-held Realtime exchange. Its only Hermes action
-  enters the native composer/send path; it cannot resolve an approval or clarification.
+- Voice uses WebRTC through the server-held Realtime exchange. Agent, MCP, screen-inspection,
+  computer-control, and delegation requests all enter the native composer/send path; voice
+  cannot resolve an approval or clarification or execute a GUI action directly.
+- The optional live screen calls authenticated same-origin WebUI endpoints. The server proxies
+  a fixed loopback-only EckOSMac ScreenCaptureKit endpoint and serves only the fixed
+  `latest-screen.png`; browser code never receives the loopback URL or a filesystem path.
+- WebUI installs a generic adapter into Hermes' existing `computer_use` approval callback.
+  Read-only capture/list-apps remain immediate. Click, type, key, scroll, drag, and app-focus
+  actions enter the existing Hermes approval queue/card and fail closed if that bridge errors.
 
 The mode has no schema or runtime migration. Before merge, rollback is removal of the
 feature branch/worktree; after merge, revert the small mode commits and remove the
@@ -1696,11 +1703,20 @@ permission, WebRTC, remote audio, bounded captions, and the `oai-events` data
 channel. The server owns `OPENAI_API_KEY` and exchanges the raw SDP offer at
 `POST /api/eckos/realtime/calls`; the credential never enters browser code.
 
-The `gpt-realtime-2.1` session exposes only `render_eckos_dashboard` and
-`send_to_hermes`. The former is limited to the closed native panel registry;
-the latter uses the existing Hermes composer/send path. Hermes remains the
-authority for agents, MCPs, computer use, Queue/Steer/Stop, approvals, and
-clarifications. Voice cannot approve or answer clarification cards.
+The `gpt-realtime-2.1` session exposes a closed set of functions:
+`render_eckos_dashboard`, `send_to_hermes`, `inspect_mac_screen`, `control_mac`,
+and `delegate_to_agent`. Dashboard rendering is limited to the closed native panel
+registry. Every work function writes a bounded natural-language request into the
+existing Hermes composer/send path. Hermes remains the authority for durable context,
+agents, MCPs, Computer Use, Queue/Steer/Stop, approvals, and clarifications. The
+Realtime session cannot approve, answer clarification cards, or perform a GUI action.
+
+The screen panel is opt-in and appears only after a screen request or explicit refresh.
+While the Hermes turn is live it takes bounded ScreenCaptureKit snapshots for up to one
+minute, then pauses. These are visual observability only; Hermes' multimodal
+`computer_use` capture remains the reasoning source. Agent handoffs ask Hermes to route
+to Codex, Claude, or another appropriate agent and keep progress/results in the same
+durable transcript rather than creating a second EckOS context store.
 
 End invalidates a pending microphone generation, so a late permission result
 cannot reopen the session. Disconnects get two bounded retries. Missing server

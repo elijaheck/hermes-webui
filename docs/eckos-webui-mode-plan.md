@@ -4,7 +4,7 @@
 
 **Goal:** Add an opt-in `/eckos` voice-first operating mode to Hermes WebUI while preserving Hermes as the only session, memory, tool, approval, and execution runtime.
 
-**Architecture:** `/eckos` is an alternate projection of the existing authenticated WebUI shell. It reuses the current browser session state, `/api/chat/start`, run-journal/session SSE, approval and clarification contracts, profile scoping, workspace authority, cron/MCP projections, and existing Hermes tool execution. EckOS contributes only presentation, true Realtime WebRTC voice, and a later approval-bound Hermes-to-Codex Computer Use tool path.
+**Architecture:** `/eckos` is an alternate projection of the existing authenticated WebUI shell. It reuses the current browser session state, `/api/chat/start`, run-journal/session SSE, approval and clarification contracts, profile scoping, workspace authority, cron/MCP projections, and existing Hermes tool execution. EckOS contributes presentation, true Realtime WebRTC voice, an opt-in same-origin ScreenCaptureKit view, and guarded requests into Hermes' built-in Computer Use and delegation paths.
 
 **Tech stack:** Existing Python server and vanilla JavaScript/CSS only; no frontend framework, bundler, second daemon, or duplicate durable store.
 
@@ -168,18 +168,18 @@ Unknown panel IDs fail closed. Panel ordering is presentation-only and cannot mu
 3. Show attribution and traceability through the normal transcript/activity anchors.
 4. Verify reload/reconnect and completion after voice teardown.
 
-### Task 6: Add approval-bound Codex Computer Use
+### Task 6: Add approval-bound Hermes Computer Use and agent handoffs
 
-**Objective:** Implement the chain Hermes plan → existing approval callback/card → Codex Computer Use → Hermes verification.
+**Objective:** Implement voice → native Hermes session → built-in Computer Use/delegation → existing approval callback/card → Hermes verification.
 
-**Architecture requirement:** This must be a registered Hermes-agent tool/plugin that enters the existing approval callback. A browser REST endpoint or Realtime tool cannot execute GUI actions directly.
+**Architecture requirement:** Reuse Hermes' registered `computer_use` and `delegate_task` surfaces. A browser REST endpoint or Realtime tool cannot execute GUI actions directly. Codex and Claude remain delegated executors selected through Hermes, not parallel EckOS context owners.
 
 **Steps:**
-1. Write a separate reviewed design for the Hermes tool/plugin boundary.
-2. Add strict TDD for serialized turns, read-only inspection, exact-plan binding, cancellation, denied permissions, bounded output, timeout, untrusted screen content, and no scope expansion.
-3. Reuse current WebUI approval cards and responses.
-4. Require Codex’s own target-app approval and macOS permissions.
-5. Verify one read-only inspection and one harmless confirmed action with fresh before/after observation.
+1. Install the WebUI adapter into Hermes' existing per-action Computer Use approval callback.
+2. Keep read-only capture/list-apps immediate and route all mutating GUI actions to the existing approval card.
+3. Proxy only the loopback EckOSMac capture endpoint server-side; never expose its URL or local path to browsers.
+4. Add Realtime functions that create bounded requests in the active Hermes session for inspection, control, and agent handoff.
+5. Verify one read-only inspection, one denied action, one harmless approved action, and Codex/Claude handoff visibility with fresh before/after observation.
 
 ### Task 7: Retarget the native shell only after parity
 

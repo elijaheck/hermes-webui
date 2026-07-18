@@ -204,6 +204,7 @@ console.log(JSON.stringify({{
     assert payload["ids"] == [
         "conversation",
         "activity",
+        "screen",
         "approvals",
         "clarifications",
         "agents",
@@ -215,7 +216,7 @@ console.log(JSON.stringify({{
     ]
     assert payload["defaults"] == {
         "ok": True,
-        "panels": ["conversation", "activity", "approvals", "clarifications"],
+        "panels": ["conversation", "activity", "screen", "approvals", "clarifications"],
         "focus": "conversation",
     }
     assert payload["ordered"] == {
@@ -236,6 +237,7 @@ def test_eckos_projection_reuses_hermes_dom_and_only_bridges_realtime_offer():
     for selector in (
         "#messages",
         "#liveRunStatus",
+        "#eckosLiveScreen",
         "#approvalCard",
         "#clarifyCard",
         "#sessionList",
@@ -246,7 +248,7 @@ def test_eckos_projection_reuses_hermes_dom_and_only_bridges_realtime_offer():
         "#titlebarProfileBtn",
     ):
         assert selector in source
-    assert source.count("global.fetch(") == 1
+    assert "api('/api/eckos/screen/capture'" in source
     assert "api/eckos/realtime/calls" in source
     assert "new EventSource" not in source
     assert "respondApproval(" not in source
@@ -294,7 +296,10 @@ def test_eckos_keeps_native_send_stream_and_action_required_contracts():
     assert "function startSessionStream(sid)" in MESSAGES_JS
     assert "async function respondApproval(choice)" in MESSAGES_JS
     assert "async function respondClarify(response)" in MESSAGES_JS
-    assert eckos_source.count("global.fetch(") == 1
+    assert "inspect_mac_screen" in eckos_source
+    assert "control_mac" in eckos_source
+    assert "delegate_to_agent" in eckos_source
+    assert "Hermes computer_use" in eckos_source
     assert "new EventSource" not in eckos_source
     assert "respondApproval(" not in eckos_source
     assert "respondClarify(" not in eckos_source
@@ -307,8 +312,19 @@ def test_eckos_voice_lifecycle_is_permission_and_stop_race_safe():
         "peer.createDataChannel('oai-events')", "generation!==voice.generation||voice.explicitStop",
         "voice.generation+=1", "['idle','error'].includes(voice.state)",
         "render_eckos_dashboard", "send_to_hermes", "pendingHumanAction()", ".slice(-4000)",
+        "inspect_mac_screen", "control_mac", "delegate_to_agent", "startScreenWatch",
     ):
         assert contract in source
+
+
+def test_eckos_live_screen_is_same_origin_hidden_until_requested():
+    assert 'id="eckosLiveScreen"' in INDEX_HTML
+    assert 'id="eckosScreenImage"' in INDEX_HTML
+    assert 'hidden aria-hidden="true"' in INDEX_HTML[INDEX_HTML.index('id="eckosLiveScreen"') - 120:INDEX_HTML.index('id="eckosLiveScreen"') + 120]
+    source = _eckos_js()
+    assert "api('/api/eckos/screen/capture'" in source
+    assert "image.src=data.screen_url" in source
+    assert "http://127.0.0.1:8731" not in source
 
 
 def test_eckos_mode_native_continuity_and_rollback_are_documented():

@@ -14,13 +14,16 @@ MAX_ANSWER_BYTES = 128 * 1024
 
 
 def build_session() -> dict:
-    panels = ["conversation", "activity", "approvals", "clarifications", "agents", "cron", "mcp", "workspace", "usage", "profile"]
+    panels = ["conversation", "activity", "screen", "approvals", "clarifications", "agents", "cron", "mcp", "workspace", "usage", "profile"]
     return {
         "type": "realtime",
         "model": REALTIME_MODEL,
         "instructions": (
             "You are the concise live voice controller for EckOS, a native Hermes dashboard. "
-            "Use render_eckos_dashboard to change dashboard emphasis and send_to_hermes for agent or MCP work. "
+            "The current Hermes session owns durable context, memory, MCP access, approvals, Computer Use, and delegation. "
+            "Use inspect_mac_screen for read-only questions about the Mac, control_mac when the user asks to interact with a native app, "
+            "delegate_to_agent when the user explicitly names Codex, Claude, Hermes, or asks you to choose, and send_to_hermes for other agent or MCP work. "
+            "Computer actions are requests to Hermes; never claim you clicked, typed, or completed an action before Hermes confirms it. "
             "Never approve an approval request, answer a clarification, or claim Hermes completed work unless its transcript confirms it."
         ),
         "output_modalities": ["audio"],
@@ -38,6 +41,18 @@ def build_session() -> dict:
             {"type": "function", "name": "send_to_hermes", "description": "Send a natural-language task into the current native Hermes session.", "parameters": {
                 "type": "object", "properties": {"message": {"type": "string", "minLength": 1, "maxLength": 8000}},
                 "required": ["message"], "additionalProperties": False}},
+            {"type": "function", "name": "inspect_mac_screen", "description": "Ask the current Hermes session to inspect the Mac screen read-only and show the same-origin live screen panel.", "parameters": {
+                "type": "object", "properties": {"question": {"type": "string", "minLength": 1, "maxLength": 4000}},
+                "required": ["question"], "additionalProperties": False}},
+            {"type": "function", "name": "control_mac", "description": "Ask the current Hermes session to use guarded Computer Use for an exact Mac interaction. Mutating steps require the visible Hermes approval card.", "parameters": {
+                "type": "object", "properties": {"instruction": {"type": "string", "minLength": 1, "maxLength": 4000}},
+                "required": ["instruction"], "additionalProperties": False}},
+            {"type": "function", "name": "delegate_to_agent", "description": "Ask Hermes to route work to another agent while keeping the result in the current durable session.", "parameters": {
+                "type": "object", "properties": {
+                    "agent": {"type": "string", "enum": ["auto", "hermes", "codex", "claude"]},
+                    "task": {"type": "string", "minLength": 1, "maxLength": 8000},
+                },
+                "required": ["agent", "task"], "additionalProperties": False}},
         ],
         "tool_choice": "auto",
     }

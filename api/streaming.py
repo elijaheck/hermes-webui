@@ -7646,6 +7646,17 @@ def _run_agent_streaming(
                 if patch_skill_home_modules is not None:
                     patch_skill_home_modules(Path(_profile_home))
         # Lock released — agent runs without holding it
+        # Hermes' computer_use tool has its own action-level callback.  The
+        # classic WebUI is not the CLI, so install a generic adapter that
+        # routes every mutating GUI action through this session's existing
+        # approval queue/card.  Capture/list-apps remain read-only.
+        try:
+            from api.eckos_computer import install_computer_use_approval_bridge
+
+            install_computer_use_approval_bridge()
+        except Exception:
+            logger.exception("Computer-use approval bridge setup failed")
+
         # ── MCP Server Discovery (lazy import, idempotent) ──
         # MUST run AFTER the HERMES_HOME mutation above — `discover_mcp_tools()`
         # reads `~/.hermes/config.yaml` via `get_hermes_home()`, which uses

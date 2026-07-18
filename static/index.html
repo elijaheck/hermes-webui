@@ -447,6 +447,22 @@
         <audio id="eckosVoiceAudio" autoplay hidden></audio>
       </div>
       <nav class="eckos-panel-nav" id="eckosPanelNav" aria-label="EckOS panels" data-i18n-aria-label="eckos_panels_label"></nav>
+      <section class="eckos-live-screen" hidden aria-hidden="true" id="eckosLiveScreen" aria-labelledby="eckosScreenTitle">
+        <header>
+          <span class="eckos-screen-presence" aria-hidden="true"></span>
+          <span>
+            <strong id="eckosScreenTitle" data-i18n="eckos_screen_title">Mac screen</strong>
+            <small id="eckosScreenStatus" role="status" aria-live="polite">Waiting for a screen request</small>
+          </span>
+          <span class="eckos-screen-actions">
+            <button id="eckosScreenRefresh" type="button">Refresh</button>
+            <button id="eckosScreenClose" type="button" aria-label="Close Mac screen">Close</button>
+          </span>
+        </header>
+        <figure>
+          <img id="eckosScreenImage" alt="Latest Mac screen capture" decoding="async">
+        </figure>
+      </section>
     </section>
     <div class="messages-shell">
       <button id="jumpToSessionStartBtn" class="session-jump-btn session-jump-btn--start" aria-label="Jump to beginning of session" data-i18n-aria-label="session_jump_start_label" data-i18n-title="session_jump_start_label" onclick="jumpToSessionStart()" style="display:none"><span aria-hidden="true">↑</span><span data-i18n="session_jump_start">Start</span></button>

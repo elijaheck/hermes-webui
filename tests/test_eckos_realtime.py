@@ -22,7 +22,16 @@ def test_session_uses_current_realtime_audio_and_closed_tools():
     assert session["model"]=="gpt-realtime-2.1" and session["output_modalities"]==["audio"]
     assert session["audio"]["input"]["turn_detection"]["type"]=="semantic_vad"
     assert session["audio"]["input"]["transcription"]["model"]=="gpt-4o-mini-transcribe"
-    assert {tool["name"] for tool in session["tools"]}=={"render_eckos_dashboard","send_to_hermes"}
+    assert {tool["name"] for tool in session["tools"]}=={
+        "render_eckos_dashboard",
+        "send_to_hermes",
+        "inspect_mac_screen",
+        "control_mac",
+        "delegate_to_agent",
+    }
+    control=next(tool for tool in session["tools"] if tool["name"]=="control_mac")
+    assert control["description"].startswith("Ask the current Hermes session")
+    assert "browser" not in control["description"].lower()
     assert "approve" in session["instructions"] and "api_key" not in json.dumps(session).lower()
 def test_missing_key_fails_closed(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY",raising=False); handler=Handler(); assert eckos_realtime.handle_realtime_call(handler); assert handler.status==503
