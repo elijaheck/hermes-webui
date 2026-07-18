@@ -436,12 +436,15 @@
         <h1 id="eckosModeTitle" data-i18n="eckos_native_session">Hermes native session</h1>
         <p data-i18n="eckos_native_description">A focused view of this conversation and its live Hermes activity.</p>
       </div>
-      <div class="eckos-voice-status" data-eckos-voice-state="disabled" role="status" aria-live="polite">
-        <span class="eckos-voice-orb" aria-hidden="true"><span></span></span>
+      <div class="eckos-voice-status" data-eckos-voice-state="idle" role="status" aria-live="polite">
+        <button class="eckos-voice-orb" id="eckosVoiceOrb" type="button" aria-label="Start live voice" title="Start live voice"><span></span></button>
         <span class="eckos-voice-copy">
           <span data-i18n="eckos_voice_label">Voice</span>
-          <strong id="eckosVoiceStatusText" data-i18n="eckos_voice_not_configured">Voice is not configured in this slice.</strong>
+          <strong id="eckosVoiceStatusText" data-i18n="eckos_voice_ready">Tap the orb to talk</strong>
+          <small id="eckosVoiceTranscript" class="eckos-voice-transcript"></small>
         </span>
+        <span class="eckos-voice-controls"><button id="eckosVoiceMute" type="button" hidden>Mute</button><button id="eckosVoiceEnd" type="button" hidden>End</button></span>
+        <audio id="eckosVoiceAudio" autoplay hidden></audio>
       </div>
       <nav class="eckos-panel-nav" id="eckosPanelNav" aria-label="EckOS panels" data-i18n-aria-label="eckos_panels_label"></nav>
     </section>

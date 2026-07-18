@@ -60,8 +60,8 @@ The native Hermes ownership chain is unchanged in EckOS mode:
 - `static/eckos.js` is a presentation-only registry over existing DOM projections.
   It creates no fetch, SSE, store, session, or agent bridge. Unknown panel IDs fail closed
   before presentation state is changed.
-- Voice is a visibly disabled, not-configured status in this slice. No voice action can
-  send a message or resolve an approval or clarification.
+- Voice uses WebRTC through the server-held Realtime exchange. Its only Hermes action
+  enters the native composer/send path; it cannot resolve an approval or clarification.
 
 The mode has no schema or runtime migration. Before merge, rollback is removal of the
 feature branch/worktree; after merge, revert the small mode commits and remove the
@@ -1688,3 +1688,25 @@ an existing workspace. Strict: path must be under home, in the saved workspace l
 
 The distinction matters because add uses permissive validation to avoid the circular
 dependency: you cannot get a path into the saved list if you need the saved list to add it.
+
+## EckOS Realtime voice
+
+`/eckos` is the same authenticated Hermes shell. The browser owns microphone
+permission, WebRTC, remote audio, bounded captions, and the `oai-events` data
+channel. The server owns `OPENAI_API_KEY` and exchanges the raw SDP offer at
+`POST /api/eckos/realtime/calls`; the credential never enters browser code.
+
+The `gpt-realtime-2.1` session exposes only `render_eckos_dashboard` and
+`send_to_hermes`. The former is limited to the closed native panel registry;
+the latter uses the existing Hermes composer/send path. Hermes remains the
+authority for agents, MCPs, computer use, Queue/Steer/Stop, approvals, and
+clarifications. Voice cannot approve or answer clarification cards.
+
+End invalidates a pending microphone generation, so a late permission result
+cannot reopen the session. Disconnects get two bounded retries. Missing server
+configuration returns 503, upstream failures are redacted, and a reload creates
+a fresh Realtime connection without changing the durable Hermes conversation.
+
+References: [Realtime WebRTC](https://developers.openai.com/api/docs/guides/realtime-webrtc),
+[Realtime MCP and function calling](https://developers.openai.com/api/docs/guides/realtime-mcp),
+and [models](https://developers.openai.com/api/docs/models).

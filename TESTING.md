@@ -171,7 +171,7 @@ python3 bootstrap.py
 Open `/` first for the unchanged baseline, then `/eckos` and
 `/eckos?session=<session_id>`. Capture desktop, notch-width, and phone-width evidence.
 At each size, verify the real transcript precedes the bottom-anchored composer; the
-voice orb says it is not configured; live activity is the native run projection; and
+voice orb starts idle and reaches Listening after permission; live activity is the native run projection; and
 approval and clarification cards remain visible and require the same explicit human
 actions. Select a different session, reload, and confirm the URL stays in EckOS mode
 and restores the same session.
@@ -1817,6 +1817,31 @@ Manual-only for Sprint 8:
 *Regression gate: tests/test_regressions.py (10 tests, one per introduced bug)*
 *Run: ./scripts/test.sh tests/ -v*
 *Source: <repo>/*
+
+## EckOS Realtime voice verification
+
+Set `OPENAI_API_KEY` in the server environment, start Hermes WebUI, and open
+`http://127.0.0.1:8787/eckos`. A physical iPhone needs an authenticated HTTPS
+origin for microphone permission.
+
+- [ ] The orb is obvious at the upper right and the transcript/composer stays
+  at the bottom at desktop, notch, and phone widths.
+- [ ] Allowing microphone access reaches Listening; denying it shows a retryable
+  error without exposing a credential.
+- [ ] Speech produces low-latency audio and a bounded caption; interruption
+  stops the assistant's current turn.
+- [ ] Mute/Unmute controls the local audio track. End stops tracks and returns
+  to idle, including when clicked while the permission prompt is open.
+- [ ] A dropped connection shows Reconnecting, tries at most twice, and End
+  cancels recovery.
+- [ ] “Show agents and MCP” changes only allowlisted dashboard panels; an
+  unknown panel fails closed.
+- [ ] Spoken Hermes work appears in the same durable session after reload.
+- [ ] Visible approval or clarification cards cannot be resolved by voice.
+- [ ] Conversation quality: invent a setting, character, conflict, and scene
+  hook; verify concise continuity and honest delegation to Hermes.
+- [ ] Removing `OPENAI_API_KEY` yields a recoverable 503 voice error while the
+  rest of Hermes continues working.
 *Modules: ui.js, workspace.js, sessions.js, messages.js, panels.js, boot.js (app.js deleted)*
 
 ---

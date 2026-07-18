@@ -13907,6 +13907,15 @@ def handle_post(handler, parsed) -> bool:
             diag.finish()
         return proxy_result
 
+    # Raw SDP runs after auth/CSRF enforcement and before shared JSON parsing.
+    if parsed.path == "/api/eckos/realtime/calls":
+        try:
+            from api.eckos_realtime import handle_realtime_call
+            return handle_realtime_call(handler)
+        finally:
+            if diag:
+                diag.finish()
+
     if parsed.path == "/api/shutdown":
         return _handle_shutdown(handler)
 

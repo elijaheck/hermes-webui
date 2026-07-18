@@ -12,7 +12,7 @@
 
 ## Contract routing
 
-**Task type:** Additive UI mode, session routing, later Realtime transport, later tool integration.
+**Task type:** Additive UI mode, session routing, Realtime transport, and later computer-use integration.
 
 **Relevant public docs:**
 - `AGENTS.md`
@@ -148,7 +148,7 @@ Unknown panel IDs fail closed. Panel ordering is presentation-only and cannot mu
 
 **Steps:**
 1. Verify the current official `/v1/realtime/calls` SDP/session contract before coding.
-2. Add failing tests for authentication, CSRF, request size, server-only key use, no-cache response, upstream timeout/error redaction, and disabled/not-configured behavior.
+2. Add failing tests for authentication, CSRF, request size, server-only key use, no-cache response, upstream timeout/error redaction, and missing-configuration behavior.
 3. Implement a bounded server-side SDP proxy; never return or log API keys.
 4. Port only the reference WebRTC primitives: `RTCPeerConnection`, microphone track, remote audio, `oai-events` data channel, semantic VAD, transcript events, barge-in, mute, explicit voice states, reconnect, teardown.
 5. Bound and debounce trusted Hermes context refreshes; do not treat Realtime state as durable memory.

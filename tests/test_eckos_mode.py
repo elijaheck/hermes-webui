@@ -169,9 +169,9 @@ def test_eckos_dashboard_keeps_native_conversation_and_action_cards():
     assert INDEX_HTML.count('id="messages"') == 1
     assert INDEX_HTML.count('id="approvalCard"') == 1
     assert INDEX_HTML.count('id="clarifyCard"') == 1
-    assert 'data-eckos-voice-state="disabled"' in INDEX_HTML
-    assert 'data-i18n="eckos_voice_not_configured"' in INDEX_HTML
-    assert "eckos_voice_not_configured: 'Voice is not configured in this slice.'" in I18N_JS
+    assert 'data-eckos-voice-state="idle"' in INDEX_HTML
+    assert 'id="eckosVoiceOrb"' in INDEX_HTML
+    assert "eckos_voice_ready: 'Tap the orb to talk'" in I18N_JS
 
 
 def test_eckos_panel_registry_is_closed_and_unknown_ids_fail_closed():
@@ -231,7 +231,7 @@ console.log(JSON.stringify({{
     assert payload["unchanged"] is True
 
 
-def test_eckos_projection_reuses_hermes_dom_and_has_no_runtime_bridge():
+def test_eckos_projection_reuses_hermes_dom_and_only_bridges_realtime_offer():
     source = _eckos_js()
     for selector in (
         "#messages",
@@ -246,8 +246,8 @@ def test_eckos_projection_reuses_hermes_dom_and_has_no_runtime_bridge():
         "#titlebarProfileBtn",
     ):
         assert selector in source
-    assert "fetch(" not in source
-    assert "/api/" not in source
+    assert source.count("global.fetch(") == 1
+    assert "api/eckos/realtime/calls" in source
     assert "new EventSource" not in source
     assert "respondApproval(" not in source
     assert "respondClarify(" not in source
@@ -256,7 +256,7 @@ def test_eckos_projection_reuses_hermes_dom_and_has_no_runtime_bridge():
 def test_eckos_styles_are_scoped_responsive_and_precached():
     assert ':root[data-mode="eckos"]' in STYLE_CSS
     assert "#eckosCommandDeck" in STYLE_CSS
-    assert 'data-eckos-voice-state="disabled"' in STYLE_CSS
+    assert 'data-eckos-voice-state="idle"' in STYLE_CSS
     assert "@media (max-width: 1100px)" in STYLE_CSS
     assert "@media (max-width: 640px)" in STYLE_CSS
     assert "./static/eckos.js" in SERVICE_WORKER_JS
@@ -294,10 +294,21 @@ def test_eckos_keeps_native_send_stream_and_action_required_contracts():
     assert "function startSessionStream(sid)" in MESSAGES_JS
     assert "async function respondApproval(choice)" in MESSAGES_JS
     assert "async function respondClarify(response)" in MESSAGES_JS
-    assert "fetch(" not in eckos_source
+    assert eckos_source.count("global.fetch(") == 1
     assert "new EventSource" not in eckos_source
     assert "respondApproval(" not in eckos_source
     assert "respondClarify(" not in eckos_source
+
+
+def test_eckos_voice_lifecycle_is_permission_and_stop_race_safe():
+    source = _eckos_js()
+    for contract in (
+        "navigator.mediaDevices.getUserMedia", "new RTCPeerConnection()",
+        "peer.createDataChannel('oai-events')", "generation!==voice.generation||voice.explicitStop",
+        "voice.generation+=1", "['idle','error'].includes(voice.state)",
+        "render_eckos_dashboard", "send_to_hermes", "pendingHumanAction()", ".slice(-4000)",
+    ):
+        assert contract in source
 
 
 def test_eckos_mode_native_continuity_and_rollback_are_documented():
