@@ -40,6 +40,34 @@ Instead, the footer exposes a single "Hermes WebUI" launch button that opens one
 control-center modal for global preferences, conversation import/export, and clear-conversation
 actions. The topbar remains focused on conversation context and the workspace/files toggle.
 
+## EckOS alternate presentation mode
+
+`/eckos` serves the same authenticated Hermes WebUI shell as `/`; it is an additive
+presentation mode, not a second app or runtime. An inline pre-paint marker sets
+`document.documentElement.dataset.mode` before the stylesheet loads, and all EckOS
+layout rules are scoped to that marker. The ordinary `/` and `/session/<id>` routes
+retain their existing markup and behavior.
+
+The native Hermes ownership chain is unchanged in EckOS mode:
+
+- `S` remains the active client state owner. `/eckos?session=<session_id>` is parsed
+  by `_sessionIdFromLocation()` and restored through the existing `loadSession()` path.
+- The existing composer and `send()` implementation continue to post through
+  `/api/chat/start`; the normal session SSE and run-journal replay paths render the
+  conversation and activity.
+- The one `#approvalCard` and one `#clarifyCard` in the shared shell remain the only
+  action-required surfaces. `static/eckos.js` cannot respond to either one.
+- `static/eckos.js` is a presentation-only registry over existing DOM projections.
+  It creates no fetch, SSE, store, session, or agent bridge. Unknown panel IDs fail closed
+  before presentation state is changed.
+- Voice is a visibly disabled, not-configured status in this slice. No voice action can
+  send a message or resolve an approval or clarification.
+
+The mode has no schema or runtime migration. Before merge, rollback is removal of the
+feature branch/worktree; after merge, revert the small mode commits and remove the
+`/eckos` route and static asset. Isolated validation uses a non-production port, so
+production port `8787` remains unchanged.
+
 ---
 
 ## 2. File Inventory

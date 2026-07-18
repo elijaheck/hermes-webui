@@ -4141,11 +4141,16 @@ function _appRootPath(){
     return base.pathname || '/';
   }catch(_e){return '/';}
 }
+function _isEckosMode(){
+  if(typeof document!=='undefined'&&document.documentElement&&document.documentElement.dataset.mode==='eckos') return true;
+  return typeof window!=='undefined'&&!!window.location&&/\/eckos\/?$/.test(window.location.pathname||'');
+}
 function _sessionUrlForSid(sid){
+  const eckosMode=_isEckosMode();
   const encoded=encodeURIComponent(sid);
   let base;
-  try{base=new URL(`session/${encoded}`, document.baseURI||window.location.origin+'/');}
-  catch(_e){base=new URL(`/session/${encoded}`, window.location.origin);}
+  try{base=new URL(eckosMode?'eckos':`session/${encoded}`, document.baseURI||window.location.origin+'/');}
+  catch(_e){base=new URL(eckosMode?'/eckos':`/session/${encoded}`, window.location.origin);}
   try{
     const current=new URL(window.location.href);
     current.searchParams.delete('session');
@@ -4154,6 +4159,7 @@ function _sessionUrlForSid(sid){
     current.searchParams.delete('prompt');
     current.searchParams.delete('send');
     base.search=current.searchParams.toString();
+    if(eckosMode) base.searchParams.set('session',sid);
     base.hash=current.hash;
   }catch(_e){}
   return base.pathname+base.search+base.hash;

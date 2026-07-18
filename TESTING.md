@@ -134,6 +134,52 @@ matrix expands to additional behavior rows. The maintainer's private QA harness
 remains broader; later public slices will add session switching, reconnect/replay,
 cancellation, compression, and recovery.
 
+## EckOS mode verification
+
+EckOS is an alternate presentation of the existing shell. Run its focused contract
+first, then the neighboring session, stream, action-required, delegated-session, MCP,
+and mobile tests:
+
+```bash
+./scripts/test.sh -q tests/test_eckos_mode.py
+./scripts/test.sh -q \
+  tests/test_issue4812_session_sse_stream.py \
+  tests/test_run_journal_routes.py \
+  tests/test_live_to_final_anchor_visible_order.py \
+  tests/test_approval_sse.py \
+  tests/test_clarify_sse.py \
+  tests/test_5307_subagent_child_transcript.py \
+  tests/test_issue696_mcp_visibility_panel.py \
+  tests/test_issue697_mcp_tool_inventory.py \
+  tests/test_mobile_layout.py \
+  tests/test_issue5539_mobile_approval_card_height.py
+npm run lint:runtime
+python tests/browser_smoke.py
+git diff --check
+```
+
+For a live browser check, start an isolated instance on a non-production port.
+Do not use real `~/.hermes` state:
+
+```bash
+HERMES_HOME=/tmp/hermes-webui-eckos-agent-home \
+HERMES_WEBUI_STATE_DIR=/tmp/hermes-webui-eckos-state \
+HERMES_WEBUI_PORT=8789 \
+python3 bootstrap.py
+```
+
+Open `/` first for the unchanged baseline, then `/eckos` and
+`/eckos?session=<session_id>`. Capture desktop, notch-width, and phone-width evidence.
+At each size, verify the real transcript precedes the bottom-anchored composer; the
+voice orb says it is not configured; live activity is the native run projection; and
+approval and clarification cards remain visible and require the same explicit human
+actions. Select a different session, reload, and confirm the URL stays in EckOS mode
+and restores the same session.
+
+Rollback before merge is removal of the feature branch/worktree. No schema or state
+migration is involved, and these isolated checks must not start, stop, or modify the
+production service on port 8787.
+
 
 `tests/test_static_js_runtime_lint.py` runs this automatically when eslint is present
 and **skips gracefully** (clear message) when it isn't — so environments without the
