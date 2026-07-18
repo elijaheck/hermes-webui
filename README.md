@@ -250,6 +250,22 @@ If an AI assistant is helping with install, reinstall, bootstrap, provider setup
 - Appends to existing textarea content (doesn't replace)
 - Hidden when browser doesn't support Web Speech API (Chrome, Edge, Safari)
 
+### EckOS Realtime dashboard
+
+- Open `/eckos` for the voice-first native Hermes dashboard: orb/status at the
+  upper right, the real Hermes transcript and composer below, and a closed set
+  of live panels that voice can reorder and focus.
+- Set `OPENAI_API_KEY` only in the server environment or server-side `.env`.
+  The browser sends its WebRTC SDP offer to Hermes; the key never enters static
+  JavaScript or browser storage.
+- EckOS uses `gpt-realtime-2.1` with semantic VAD and full-duplex WebRTC audio.
+  Spoken agent work enters the existing Hermes session and cannot bypass native
+  approval or clarification cards.
+- Remote phones need an authenticated HTTPS origin for microphone permission.
+  See [ARCHITECTURE.md](ARCHITECTURE.md#eckos-realtime-voice) and
+  [TESTING.md](TESTING.md#eckos-realtime-voice-verification) for lifecycle,
+  recovery, latency notes, and the validation checklist.
+
 ### Profiles
 - Profile chip in the **composer footer** -- dropdown showing all profiles with gateway status and model info
 - Gateway status dots (green = running), model info, skill count per profile
