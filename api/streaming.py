@@ -7343,6 +7343,13 @@ def _run_agent_streaming(
     # write without nonlocal) so it can seed `_last_err` and let the classifier
     # surface the real, actionable cause (model_not_found / auth_mismatch).
     _captured_terminal_error = [None]
+    # Mutable holder so _agent_status_callback can read the live agent's
+    # model/provider to enrich fallback SSE events with structured data.
+    _current_agent = [None]
+    # Accumulates fallback notices so they can be persisted on the turn's
+    # final assistant message before s.save() — making them survive
+    # renderMessages() rebuilds, session switches, and page reloads.
+    _pending_fallback_notices = []
 
     def _agent_status_callback(kind, message):
         """Bridge Agent lifecycle status into WebUI SSE.
@@ -7377,7 +7384,23 @@ def _run_agent_streaming(
         # show them as warnings via the existing messages.js 'warning' listener.
         _is_fallback_notice = _is_fallback_lifecycle_message(_kind, _message)
         if _is_fallback_notice:
-            put('warning', {'type': 'fallback', 'message': _message})
+            _fallback_data = {'type': 'fallback', 'message': _message}
+            # Enrich with from/to model+provider when the agent is available,
+            # so the frontend can show a persistent, informative notice
+            # instead of just a 4-second status bar flash.
+            _agent_ref = _current_agent[0]
+            if _agent_ref is not None:
+                _fallback_data['to_model'] = getattr(_agent_ref, 'model', '') or ''
+                _fallback_data['to_provider'] = getattr(_agent_ref, 'provider', '') or ''
+            # Capture for session-persisted metadata. Stamped onto the turn's
+            # final assistant message before s.save() so it survives
+            # renderMessages() rebuilds and session switches.
+            _pending_fallback_notices.append({
+                'message': _fallback_data['message'],
+                'to_model': _fallback_data.get('to_model', ''),
+                'to_provider': _fallback_data.get('to_provider', ''),
+            })
+            put('warning', _fallback_data)
 
     # xsession wakeup misroute root fix (Option 1): pre-init so the outer
     # finally can always reset even if an exception fires before the bind.
@@ -8508,6 +8531,7 @@ def _run_agent_streaming(
             # injectionFrequency: "first-turn" actually suppresses after turn 1.
             if ephemeral:
                 agent = _AIAgent(**_agent_kwargs)
+                _current_agent[0] = agent
                 logger.debug('[webui] Created ephemeral agent for session %s', session_id)
             else:
                 import hashlib as _hashlib
@@ -8593,6 +8617,7 @@ def _run_agent_streaming(
                 if agent is not None:
                     # Refresh per-turn callbacks — these close over request-scoped
                     # objects (put queue, cancel_event) that are new each request.
+                    _current_agent[0] = agent
                     agent.stream_delta_callback = _agent_kwargs.get('stream_delta_callback')
                     agent.tool_progress_callback = _agent_kwargs.get('tool_progress_callback')
                     if hasattr(agent, 'tool_start_callback'):
@@ -8634,6 +8659,7 @@ def _run_agent_streaming(
                         agent._interrupt_message = None
                 else:
                     agent = _AIAgent(**_agent_kwargs)
+                    _current_agent[0] = agent
                     # Register the new agent with the memory lifecycle so
                     # its commit_memory_session() can be found later.
                     try:
@@ -9306,6 +9332,7 @@ def _run_agent_streaming(
                             if 'credential_pool' in _agent_params:
                                 _agent_kwargs['credential_pool'] = _heal_rt.get('credential_pool')
                             agent = _AIAgent(**_agent_kwargs)
+                            _current_agent[0] = agent
                             with STREAMS_LOCK:
                                 AGENT_INSTANCES[stream_id] = agent
                             from api.config import SESSION_AGENT_CACHE as _SAC, SESSION_AGENT_CACHE_LOCK as _SAC_L
@@ -9486,6 +9513,13 @@ def _run_agent_streaming(
                             _error_message['provider_details_label'] = 'Interruption details'
                         elif _err_type == 'tool_limit_reached':
                             _error_message['provider_details_label'] = 'Terminal state details'
+                        # Persist fallback notices on the error assistant message
+                        # so they survive session switches / page reloads
+                        # (greptile P1: error saves drop notices). Every s.save()
+                        # path that finalizes an assistant turn must flush
+                        # _pending_fallback_notices.
+                        if _pending_fallback_notices:
+                            _error_message['_fallbackNotice'] = _pending_fallback_notices[-1]
                         s.messages.append(_error_message)
                         try:
                             s.save()
@@ -9736,6 +9770,11 @@ def _run_agent_streaming(
                             _ttft_ms = meter().get_ttft_ms(stream_id)
                             if _ttft_ms is not None:
                                 _dm['_firstTokenMs'] = _ttft_ms
+                            # Persist fallback notices on the turn's final
+                            # assistant message so they survive renderMessages()
+                            # rebuilds, session switches, and page reloads.
+                            if _pending_fallback_notices:
+                                _dm['_fallbackNotice'] = _pending_fallback_notices[-1]
                             break
                 # Persist context window data on the session so the context-ring
                 # indicator survives a page reload (#1318). Must run BEFORE
@@ -10527,6 +10566,10 @@ def _run_agent_streaming(
                     if 'credential_pool' in _agent_params:
                         _heal_kwargs['credential_pool'] = _heal_rt.get('credential_pool')
                     _heal_agent = _AIAgent(**_heal_kwargs)
+                    # Update the holder so the fallback-notice callback reads
+                    # the replacement agent's model/provider, not the stale
+                    # failed agent (greptile P1: stale-heal-metadata).
+                    _current_agent[0] = _heal_agent
                     with STREAMS_LOCK:
                         AGENT_INSTANCES[stream_id] = _heal_agent
                     from api.config import SESSION_AGENT_CACHE as _SAC2, SESSION_AGENT_CACHE_LOCK as _SAC2_L
@@ -10592,6 +10635,19 @@ def _run_agent_streaming(
                                     source=getattr(s, 'pending_user_source', None) or 'webui',
                                 )
                                 _advance_truncation_watermark_after_commit(s)  # #3831
+                                # Persist fallback notices on the final
+                                # assistant message so they survive
+                                # renderMessages() rebuilds, session switches,
+                                # and page reloads (greptile P1: heal notices
+                                # not saved). The heal-success path has its
+                                # own save block that returns before the normal
+                                # pre-save metadata block runs, so flush
+                                # _pending_fallback_notices here too.
+                                if _pending_fallback_notices:
+                                    for _dm in reversed(s.messages):
+                                        if isinstance(_dm, dict) and _dm.get('role') == 'assistant':
+                                            _dm['_fallbackNotice'] = _pending_fallback_notices[-1]
+                                            break
                                 s.save()
                         logger.info('[webui] self-heal (except path): retry succeeded')
                         return  # skip error emission
@@ -10703,6 +10759,12 @@ def _run_agent_streaming(
                     _error_message['provider_details_label'] = 'Cancellation details'
                 elif _exc_type == 'interrupted':
                     _error_message['provider_details_label'] = 'Interruption details'
+                # Persist fallback notices on the error assistant message so
+                # they survive session switches / page reloads (greptile P1:
+                # error saves drop notices). Every s.save() path that finalizes
+                # an assistant turn must flush _pending_fallback_notices.
+                if _pending_fallback_notices:
+                    _error_message['_fallbackNotice'] = _pending_fallback_notices[-1]
                 s.messages.append(_error_message)
                 try:
                     s.save()
