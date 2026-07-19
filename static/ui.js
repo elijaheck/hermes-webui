@@ -7030,6 +7030,17 @@ function _formatGatewayModelLabel(modelId,labelText,routing){
   const via=_gatewayRoutingLabel(routing);
   return via?`${base} ${via}`:base;
 }
+function _usedModelTurnChipLabel(msg){
+  if(!msg)return'';
+  // Gateway turns own their model label via _formatGatewayModelLabel (which
+  // falls back to msg._usedModel when routing omits used_model), so suppress
+  // the additive chip whenever routing metadata is present — not only when
+  // routing.used_model is set — to guarantee one model label per turn.
+  if(msg._gatewayRouting)return'';
+  const usedModel=String(msg._usedModel||'').trim();
+  if(!usedModel)return'';
+  return _compactComposerModelChipLabel(usedModel,getModelLabel(usedModel));
+}
 function _gatewayRoutingFailoverText(routing){
   if(!routing||!routing.has_failover)return'';
   const attempts=Array.isArray(routing.routing)?routing.routing:[];
@@ -11754,9 +11765,10 @@ function _applyTransparentRowFading(turn){
 // Mirrors the live run-status line for settled turns in transparent
 // mode. Shows duration, first-token time, token usage, and final status.
 // Only rendered for turns that have transparent event rows.
-function _transparentTurnFooterHtml(durationText, ttftText, tokensText, statusText){
+function _transparentTurnFooterHtml(durationText, modelText, ttftText, tokensText, statusText){
   const parts=[];
   if(durationText) parts.push(`<span class="lf-time">${esc(durationText)}</span>`);
+  if(modelText) parts.push(`<span class="lf-model">${esc(modelText)}</span>`);
   if(ttftText) parts.push(`<span class="lf-ttft" title="${esc(t('first_token_time')||'Time to first token')}">TTFT ${esc(ttftText)}</span>`);
   if(tokensText) parts.push(`<span class="lf-tokens">${esc(tokensText)}</span>`);
   if(statusText) parts.push(`<span class="lf-status">${esc(statusText)}</span>`);
@@ -11775,10 +11787,11 @@ function _renderTransparentTurnFooter(turn, opts){
     return;
   }
   const durationText=opts&&opts.durationText||'';
+  const modelText=opts&&opts.modelText||'';
   const ttftText=opts&&opts.ttftText||'';
   const tokensText=opts&&opts.tokensText||'';
   const statusText=opts&&opts.statusText||(t('done')||'Done');
-  const html=_transparentTurnFooterHtml(durationText, ttftText, tokensText, statusText);
+  const html=_transparentTurnFooterHtml(durationText, modelText, ttftText, tokensText, statusText);
   let footer=turn.querySelector('.transparent-turn-footer');
   if(!html){
     if(footer) footer.remove();
@@ -16586,7 +16599,7 @@ function renderMessages(options){
       const msg=S.messages[mi]||{};
       if(msg.role!=='assistant') continue;
       const routing=msg._gatewayRouting||null;
-      const gatewayText=_formatGatewayModelLabel(S.session&&S.session.model||'', '', routing);
+      const gatewayText=_formatGatewayModelLabel(String(msg._usedModel||'').trim()||(S.session&&S.session.model)||'', '', routing);
       const failoverText=_gatewayRoutingFailoverText(routing);
       const modelWarningText=_gatewayModelWarningText(routing);
       const hasTurnUsage=!!msg._turnUsage;
@@ -16595,12 +16608,13 @@ function renderMessages(options){
       // Worklog above the final answer.
       const compactWorklogForMessage=isCompactWorklogMode()&&(toolCallAssistantIdxs.has(mi)||assistantThinking.has(mi));
       const durationText=compactWorklogForMessage?'':_formatTurnDuration(msg._turnDuration);
-      if(!hasTurnUsage&&!durationText&&!gatewayText&&!failoverText&&!modelWarningText) continue;
+      const usedModelText=_usedModelTurnChipLabel(msg);
+      if(!hasTurnUsage&&!durationText&&!gatewayText&&!failoverText&&!modelWarningText&&!usedModelText) continue;
       const seg=assistantSegments.get(mi);
       const row=seg?seg.closest('.assistant-turn'):null;
       const footerRows=row?row.querySelectorAll('.msg-foot'):[];
       const targetFoot=footerRows.length?footerRows[footerRows.length-1]:null;
-      if(!targetFoot||targetFoot.querySelector('.msg-usage-inline,.msg-duration-inline,.msg-gateway-inline,.gateway-failover-inline,.msg-model-warning-inline')) continue;
+      if(!targetFoot||targetFoot.querySelector('.msg-usage-inline,.msg-duration-inline,.msg-gateway-inline,.gateway-failover-inline,.msg-model-warning-inline,.msg-used-model-inline')) continue;
       const fragments=[];
       if(modelWarningText){
         const warning=document.createElement('span');
@@ -16625,6 +16639,20 @@ function renderMessages(options){
         duration.className='msg-duration-inline';
         duration.textContent=`Done in ${durationText}`;
         fragments.push(duration);
+      }
+      // The transparent turn footer owns the model label (.lf-model) whenever
+      // the turn has transparent event rows — skip the generic chip there so
+      // exactly one model label renders per turn. Model sits after duration to
+      // match the transparent footer order (elapsed · model · …).
+      const _transparentFooterOwnsModel=usedModelText&&isTransparentStream()&&row&&(()=>{
+        const blocks=_assistantTurnBlocks(row);
+        return !!(blocks&&blocks.querySelector(':scope > .transparent-event-row'));
+      })();
+      if(usedModelText&&!_transparentFooterOwnsModel){
+        const usedModel=document.createElement('span');
+        usedModel.className='msg-used-model-inline';
+        usedModel.textContent=usedModelText;
+        fragments.push(usedModel);
       }
       if(window._showTokenUsage&&hasTurnUsage){
         const usage=document.createElement('span');
@@ -16676,6 +16704,7 @@ function renderMessages(options){
         // Find the corresponding message to read duration/usage.
         const seg=turn.querySelector('.assistant-segment');
         let durationText='';
+        let modelText='';
         let ttftText='';
         let tokensText='';
         if(seg){
@@ -16683,6 +16712,7 @@ function renderMessages(options){
           if(mi!=null){
             const msg=S.messages[Number(mi)]||{};
             if(msg._turnDuration!=null) durationText=_formatTurnDuration(msg._turnDuration);
+            modelText=_usedModelTurnChipLabel(msg);
             if(msg._firstTokenMs!=null) ttftText=_formatFirstToken(msg._firstTokenMs);
             if(msg._turnUsage){
               const inTok=msg._turnUsage.input_tokens||0;
@@ -16693,6 +16723,7 @@ function renderMessages(options){
         }
         _renderTransparentTurnFooter(turn,{
           durationText,
+          modelText,
           ttftText,
           tokensText,
           statusText: t('done')||'Done',
