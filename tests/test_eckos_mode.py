@@ -141,6 +141,39 @@ def test_cockpit_mode_is_identified_before_stylesheet_paint():
     assert "/cockpit" in base_script
 
 
+def test_cockpit_is_a_first_class_phone_action_in_native_navigation():
+    assert 'id="cockpitRailBtn"' in INDEX_HTML
+    assert 'onclick="openHermesCockpit(event)"' in INDEX_HTML
+    assert 'data-tooltip="Hermes Cockpit"' in INDEX_HTML
+    assert 'M22 16.92v3' in INDEX_HTML
+    assert 'data-panel="cockpit"' not in INDEX_HTML
+    source = _cockpit_js()
+    assert "syncCockpitNavigation();" in source
+    assert "global.openHermesCockpit=openHermesCockpit" in source
+
+
+def test_cockpit_navigation_preserves_profile_session_and_subpath():
+    payload = _run_node(
+        f"""
+global.window = {{}};
+(0, eval)({_cockpit_js()!r});
+const direct = window.HermesCockpit.cockpitNavigationUrl(
+  'https://example.test/session/abc%20123?profile=ops',
+  'https://example.test/'
+);
+const existing = window.HermesCockpit.cockpitNavigationUrl(
+  'https://example.test/app/?session_id=legacy&profile=owner',
+  'https://example.test/app/'
+);
+console.log(JSON.stringify({{ direct, existing }}));
+"""
+    )
+    assert payload == {
+        "direct": "https://example.test/cockpit?profile=ops&session=abc+123",
+        "existing": "https://example.test/app/cockpit?profile=owner&session=legacy",
+    }
+
+
 def test_session_url_builder_preserves_cockpit_and_normal_routes():
     payload = _run_node(
         _session_url_harness()
@@ -172,6 +205,10 @@ def test_cockpit_dashboard_keeps_native_conversation_and_action_cards():
     assert 'data-cockpit-voice-state="idle"' in INDEX_HTML
     assert 'id="cockpitVoiceOrb"' in INDEX_HTML
     assert "cockpit_voice_ready: 'Tap the orb to talk'" in I18N_JS
+    assert 'id="cockpitWorkdesk"' in INDEX_HTML
+    assert 'id="cockpitAttention"' in INDEX_HTML
+    assert INDEX_HTML.count('data-cockpit-project-slot=') == 3
+    assert 'id="cockpitVoiceRail"' in INDEX_HTML
 
 
 def test_cockpit_panel_registry_is_closed_and_unknown_ids_fail_closed():
@@ -217,8 +254,8 @@ console.log(JSON.stringify({{
     ]
     assert payload["defaults"] == {
         "ok": True,
-        "panels": ["calls", "conversation", "activity", "approvals", "clarifications"],
-        "focus": "calls",
+        "panels": ["conversation", "calls", "activity", "approvals", "clarifications"],
+        "focus": "conversation",
     }
     assert payload["ordered"] == {
         "ok": True,
@@ -277,9 +314,14 @@ console.log(JSON.stringify({{
     )
     assert payload == {
         "domReadyRegistered": True,
-        "calls": ["/api/cockpit/calls", "/api/cockpit/runtime-identity"],
+        "calls": [
+            "/api/cockpit/calls",
+            "/api/canonical-projects",
+            "/api/sessions",
+            "/api/cockpit/runtime-identity",
+        ],
         "readiness": "not configured",
-        "runtime": "WebUI test @ abc · Hermes test @ def",
+        "runtime": "WebUI abc · Hermes def",
     }
 
 
@@ -354,6 +396,32 @@ def test_cockpit_keeps_native_send_stream_and_action_required_contracts():
     assert "new EventSource" not in cockpit_source
     assert "respondApproval(" not in cockpit_source
     assert "respondClarify(" not in cockpit_source
+
+
+def test_cockpit_voice_replaces_upstream_tool_drift_and_guards_approval_resolution():
+    source = _cockpit_js()
+    for contract in (
+        "type:'session.update'",
+        "read_cockpit_context",
+        "improve_my_prompt",
+        "preview_pending_approval",
+        "resolve_pending_approval",
+        "voice.userTurnSerial",
+        "approval_confirmation_required",
+        "approval_changed",
+        "HermesApprovalBridge",
+    ):
+        assert contract in source
+    assert "decision==='once'||decision==='deny'" in source
+    assert "decision==='session'" not in source
+    assert "decision==='always'" not in source
+
+    # The approval state owner exposes one narrow bridge; cockpit never reads the
+    # lexical pending maps or calls respondApproval directly.
+    assert "globalThis.HermesApprovalBridge" in MESSAGES_JS
+    assert "allowedChoice" in MESSAGES_JS
+    assert "choice === 'once' || choice === 'deny'" in MESSAGES_JS
+    assert "respondApproval(" not in source
 
 
 def test_cockpit_voice_lifecycle_is_permission_and_stop_race_safe():

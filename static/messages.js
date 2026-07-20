@@ -7208,6 +7208,39 @@ async function respondApproval(choice) {
   }
 }
 
+// Narrow state-owner bridge for the Cockpit voice layer. The Cockpit never
+// reads approval maps directly and can never grant session-wide or permanent
+// permission. Exact ids are required so a stale spoken confirmation fails
+// closed if the pending command changes while Hermes is talking.
+globalThis.HermesApprovalBridge = Object.freeze({
+  getPending() {
+    const sid = _approvalSessionId;
+    const approvalId = _approvalCurrentId;
+    if (!sid || !approvalId) return null;
+    const entry = _approvalPendingBySession.get(sid);
+    const pending = entry && entry.pending;
+    if (!pending || (pending.approval_id || null) !== approvalId) return null;
+    return Object.freeze({
+      session_id: sid,
+      approval_id: approvalId,
+      description: String(pending.description || ''),
+      command: String(pending.command || ''),
+    });
+  },
+  async respond(request) {
+    const choice = request && request.choice;
+    const allowedChoice = choice === 'once' || choice === 'deny';
+    if (!allowedChoice) return {ok: false, error: 'unsupported_approval_scope'};
+    const pending = this.getPending();
+    if (!pending) return {ok: false, error: 'approval_changed'};
+    if (String(request.session_id || '') !== pending.session_id || String(request.approval_id || '') !== pending.approval_id) {
+      return {ok: false, error: 'approval_changed'};
+    }
+    await respondApproval(choice);
+    return {ok: true, decision: choice};
+  },
+});
+
 function startApprovalPolling(sid) {
   stopApprovalPolling();
   _approvalPollingSessionId = sid || null;

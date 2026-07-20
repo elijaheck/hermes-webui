@@ -56,13 +56,18 @@ The native Hermes ownership chain is unchanged in Cockpit mode:
   `/api/chat/start`; the normal session SSE and run-journal replay paths render the
   conversation and activity.
 - The one `#approvalCard` and one `#clarifyCard` in the shared shell remain the only
-  action-required surfaces. `static/cockpit.js` cannot respond to either one.
+  action-required surfaces. Cockpit relocates those same nodes into **What needs you**;
+  it does not clone their state. Clarifications remain click/type-only. Approval state
+  exposes one narrow owner bridge for a guarded voice allow-once or deny response.
 - `static/cockpit.js` is a presentation-only registry over existing DOM projections.
   It creates no durable store, session, or parallel agent bridge. Unknown panel IDs fail closed
   before presentation state is changed.
-- Voice uses WebRTC through the server-held Realtime exchange. Agent, MCP, screen-inspection,
-  computer-control, and delegation requests all enter the native composer/send path; voice
-  cannot resolve an approval or clarification or execute a GUI action directly.
+- Voice uses WebRTC through the server-held Realtime exchange. On data-channel open,
+  WebUI replaces any upstream tool drift with its closed Cockpit instructions and tool
+  schema. Agent, MCP, screen-inspection, computer-control, and delegation requests enter
+  the native composer/send path. Voice can resolve only an exact pending approval as
+  allow-once or deny after preview plus a separate explicit confirmation utterance; it
+  cannot grant session/permanent approval, answer a clarification, or execute GUI action directly.
 - The optional live screen calls authenticated same-origin WebUI endpoints. The server proxies
   a fixed loopback-only EckOSMac ScreenCaptureKit endpoint and serves only the fixed
   `latest-screen.png`; browser code never receives the loopback URL or a filesystem path.
@@ -79,6 +84,9 @@ The native Hermes ownership chain is unchanged in Cockpit mode:
   Workspace paths auto-bind to the most-specific canonical root. The older sidebar
   grouping store remains intact and is presented as **collections**; its historical
   `project_id` wire field is retained only for backward compatibility.
+- The supervisor workdesk projects exactly three canonical project selections over
+  existing Hermes sessions. Each bay shows recent transcript/tool activity with truthful
+  provenance. It never duplicates the single Mac capture to imply three independent screens.
 
 The mode has no schema or runtime migration. Before merge, rollback is removal of the
 feature branch/worktree; after merge, revert the small mode commits and remove the
@@ -1716,13 +1724,20 @@ channel. The WebUI server forwards the raw SDP offer from
 endpoint using `ECKOS_INTERNAL_API_TOKEN`; provider credentials stay in EckOS and
 neither the internal address nor credential enters browser code.
 
-The `gpt-realtime-2.1` session exposes a closed set of functions:
-`render_hermes_cockpit`, `send_to_hermes`, `inspect_mac_screen`, `control_mac`,
-and `delegate_to_agent`. Cockpit rendering is limited to the closed native tab
-registry. Every work function writes a bounded natural-language request into the
-existing Hermes composer/send path. Hermes remains the authority for durable context,
-agents, MCPs, Computer Use, Queue/Steer/Stop, approvals, and clarifications. The
-Realtime session cannot approve, answer clarification cards, or perform a GUI action.
+The `gpt-realtime-2.1` session exposes a closed WebUI-owned set of functions:
+`render_hermes_cockpit`, `read_cockpit_context`, `improve_my_prompt`,
+`send_to_hermes`, `inspect_mac_screen`, `control_mac`, `delegate_to_agent`,
+`preview_pending_approval`, and `resolve_pending_approval`. Cockpit rendering is limited
+to the closed native tab registry. Every work function writes a bounded natural-language
+request into the existing Hermes composer/send path. Hermes remains the authority for
+durable context, agents, MCPs, Computer Use, Queue/Steer/Stop, approvals, and
+clarifications.
+
+Approval voice resolution is deliberately two-turn and fail-closed. Preview snapshots
+the exact native session id, approval id, description, and command for 30 seconds. A later
+transcribed owner turn must explicitly confirm the same allow-once or deny decision. The
+native bridge rejects a changed/stale id and does not expose session-wide or permanent
+choices. Clarifications and GUI execution remain outside the Realtime session.
 
 The screen panel is opt-in and appears only after a screen request or explicit refresh.
 While the Hermes turn is live it takes bounded ScreenCaptureKit snapshots for up to one

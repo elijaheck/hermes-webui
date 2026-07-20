@@ -9766,6 +9766,7 @@ _SIDEBAR_SESSION_RESPONSE_FIELDS = {
     "pinned",
     "archived",
     "project_id",
+    "canonical_project_id",
     "profile",
     "input_tokens",
     "output_tokens",

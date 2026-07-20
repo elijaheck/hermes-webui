@@ -154,6 +154,7 @@
 <div class="layout">
   <nav class="rail" aria-label="Primary navigation">
     <button class="rail-btn nav-tab active has-tooltip" data-panel="chat" onclick="switchPanel('chat',{fromRailClick:true})" data-tooltip="Chat" data-i18n-title="tab_chat" aria-label="Chat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+    <button class="rail-btn nav-tab has-tooltip" id="cockpitRailBtn" type="button" onclick="openHermesCockpit(event)" data-tooltip="Hermes Cockpit" aria-label="Hermes Cockpit"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.69 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.33 1.84.56 2.8.69A2 2 0 0 1 22 16.92z"/></svg></button>
     <button class="rail-btn nav-tab has-tooltip" data-panel="tasks" onclick="switchPanel('tasks',{fromRailClick:true})" data-tooltip="Tasks" data-i18n-title="tab_tasks" aria-label="Tasks"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
     <button class="rail-btn nav-tab has-tooltip" data-panel="kanban" onclick="switchPanel('kanban',{fromRailClick:true})" data-tooltip="Kanban" data-i18n-title="tab_kanban" aria-label="Kanban"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16"/><path d="M16 4v16"/><path d="M3 10h18"/></svg></button>
     <button class="rail-btn nav-tab has-tooltip" data-panel="skills" onclick="switchPanel('skills',{fromRailClick:true})" data-tooltip="Skills" data-i18n-title="tab_skills" aria-label="Skills"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></button>
@@ -430,28 +431,76 @@
       </div>
     </div>
     <div id="mainChat" class="main-view">
-    <section class="cockpit-command-deck" id="cockpitCommandDeck" aria-labelledby="cockpitModeTitle">
-      <div class="cockpit-command-copy">
-        <span class="cockpit-kicker" data-i18n="cockpit_mode_label">Hermes Cockpit</span>
-        <h1 id="cockpitModeTitle" data-i18n="cockpit_native_session">Hermes operator session</h1>
-        <p data-i18n="cockpit_native_description">One focused view of native Hermes state, approvals, work, and EckOS calls.</p>
-        <small id="cockpitRuntimeIdentity" class="cockpit-runtime-identity" role="status">Loading deployed runtime identity…</small>
-      </div>
-      <div class="cockpit-voice-status" data-cockpit-voice-state="idle" role="status" aria-live="polite">
-        <button class="cockpit-voice-orb" id="cockpitVoiceOrb" type="button" aria-label="Start live voice" title="Start live voice"><span></span></button>
-        <span class="cockpit-voice-copy">
-          <span data-i18n="cockpit_voice_label">Voice</span>
-          <strong id="cockpitVoiceStatusText" data-i18n="cockpit_voice_ready">Tap the orb to talk</strong>
-          <small id="cockpitVoiceTranscript" class="cockpit-voice-transcript"></small>
-        </span>
-        <span class="cockpit-voice-controls"><button id="cockpitVoiceMute" type="button" hidden>Mute</button><button id="cockpitVoiceEnd" type="button" hidden>End</button></span>
-        <audio id="cockpitVoiceAudio" autoplay hidden></audio>
-      </div>
+    <section class="cockpit-command-deck" id="cockpitCommandDeck" aria-label="Hermes Cockpit">
+      <section class="cockpit-workdesk" id="cockpitWorkdesk">
+        <aside class="cockpit-attention" id="cockpitAttention" aria-labelledby="cockpitAttentionTitle">
+          <header>
+            <span><strong id="cockpitAttentionTitle">What needs you</strong><small>Ranked by impact and risk</small></span>
+            <span class="cockpit-attention-count" id="cockpitAttentionCount" aria-label="Items needing attention">0</span>
+          </header>
+          <div class="cockpit-attention-native" id="cockpitAttentionNative"></div>
+          <ol class="cockpit-attention-list" id="cockpitAttentionList"><li class="cockpit-empty-note">No approvals or questions right now.</li></ol>
+          <div class="cockpit-attention-utility">
+            <button id="cockpitCallsShortcut" type="button">EckOS Calls</button>
+            <small id="cockpitRuntimeIdentity" class="cockpit-runtime-identity" role="status">Loading runtime…</small>
+          </div>
+        </aside>
+
+        <section class="cockpit-project-wall" aria-label="Project workers">
+          <div class="cockpit-project-selectors">
+            <label><span>Project 1</span><select id="cockpitProjectSelect0" data-cockpit-project-slot="0" aria-label="First project"></select></label>
+            <label><span>Project 2</span><select id="cockpitProjectSelect1" data-cockpit-project-slot="1" aria-label="Second project"></select></label>
+            <label><span>Project 3</span><select id="cockpitProjectSelect2" data-cockpit-project-slot="2" aria-label="Third project"></select></label>
+          </div>
+          <div class="cockpit-project-bays">
+            <article class="cockpit-project-bay" id="cockpitProjectBay0" data-slot-index="0">
+              <header><span><strong data-cockpit-worker>Waiting for a worker</strong><small data-cockpit-session>Choose a project above</small></span><span class="cockpit-worker-state" data-cockpit-state="idle">Idle</span></header>
+              <dl><div><dt>Current action</dt><dd data-cockpit-action>No active session</dd></div><div><dt>Last verified</dt><dd data-cockpit-verified>—</dd></div></dl>
+              <div class="cockpit-work-summary" data-cockpit-summary>No recent project activity is available.</div>
+              <div class="cockpit-work-view" data-cockpit-view-state="empty"><div class="cockpit-work-view-bar"><span data-cockpit-view-label>Session work view</span><small data-cockpit-view-time></small></div><pre data-cockpit-view>Worker output will appear here.</pre></div>
+              <footer><button type="button" data-cockpit-action-button="speak">Speak about this</button><button type="button" data-cockpit-action-button="join">Join worker</button><button type="button" data-cockpit-action-button="evidence">View evidence</button></footer>
+            </article>
+            <article class="cockpit-project-bay" id="cockpitProjectBay1" data-slot-index="1">
+              <header><span><strong data-cockpit-worker>Waiting for a worker</strong><small data-cockpit-session>Choose a project above</small></span><span class="cockpit-worker-state" data-cockpit-state="idle">Idle</span></header>
+              <dl><div><dt>Current action</dt><dd data-cockpit-action>No active session</dd></div><div><dt>Last verified</dt><dd data-cockpit-verified>—</dd></div></dl>
+              <div class="cockpit-work-summary" data-cockpit-summary>No recent project activity is available.</div>
+              <div class="cockpit-work-view" data-cockpit-view-state="empty"><div class="cockpit-work-view-bar"><span data-cockpit-view-label>Session work view</span><small data-cockpit-view-time></small></div><pre data-cockpit-view>Worker output will appear here.</pre></div>
+              <footer><button type="button" data-cockpit-action-button="speak">Speak about this</button><button type="button" data-cockpit-action-button="join">Join worker</button><button type="button" data-cockpit-action-button="evidence">View evidence</button></footer>
+            </article>
+            <article class="cockpit-project-bay" id="cockpitProjectBay2" data-slot-index="2">
+              <header><span><strong data-cockpit-worker>Waiting for a worker</strong><small data-cockpit-session>Choose a project above</small></span><span class="cockpit-worker-state" data-cockpit-state="idle">Idle</span></header>
+              <dl><div><dt>Current action</dt><dd data-cockpit-action>No active session</dd></div><div><dt>Last verified</dt><dd data-cockpit-verified>—</dd></div></dl>
+              <div class="cockpit-work-summary" data-cockpit-summary>No recent project activity is available.</div>
+              <div class="cockpit-work-view" data-cockpit-view-state="empty"><div class="cockpit-work-view-bar"><span data-cockpit-view-label>Session work view</span><small data-cockpit-view-time></small></div><pre data-cockpit-view>Worker output will appear here.</pre></div>
+              <footer><button type="button" data-cockpit-action-button="speak">Speak about this</button><button type="button" data-cockpit-action-button="join">Join worker</button><button type="button" data-cockpit-action-button="evidence">View evidence</button></footer>
+            </article>
+          </div>
+        </section>
+      </section>
+
+      <section class="cockpit-voice-rail" id="cockpitVoiceRail" aria-label="Talk to Hermes">
+        <div class="cockpit-voice-status" data-cockpit-voice-state="idle" role="status" aria-live="polite">
+          <button class="cockpit-voice-orb" id="cockpitVoiceOrb" type="button" aria-label="Start live voice" title="Start live voice"><span></span></button>
+          <span class="cockpit-voice-copy">
+            <span>Hermes heard</span>
+            <strong id="cockpitVoiceStatusText" data-i18n="cockpit_voice_ready">Tap the orb to talk</strong>
+            <small id="cockpitVoiceTranscript" class="cockpit-voice-transcript"></small>
+          </span>
+          <span class="cockpit-voice-controls"><button id="cockpitVoiceMute" type="button" hidden>Mute</button><button id="cockpitVoiceEnd" type="button" hidden>End</button></span>
+          <audio id="cockpitVoiceAudio" autoplay hidden></audio>
+        </div>
+        <div class="cockpit-prompt-rail">
+          <label for="cockpitPromptInput">Prompt Hermes</label>
+          <div><textarea id="cockpitPromptInput" rows="1" maxlength="8000" placeholder="Ask about a worker, improve an instruction, or give the next step."></textarea><button id="cockpitImprovePrompt" type="button">Help me prompt</button><button id="cockpitSendPrompt" class="primary" type="button">Send</button></div>
+          <small id="cockpitPromptContext">All three projects in view</small>
+        </div>
+      </section>
+
       <nav class="cockpit-panel-nav" id="cockpitPanelNav" aria-label="EckOS panels" data-i18n-aria-label="cockpit_panels_label"></nav>
       <section class="cockpit-calls" hidden aria-hidden="true" id="cockpitCallsPanel" data-cockpit-tab="calls" aria-labelledby="cockpitCallsTitle">
         <header>
           <span><strong id="cockpitCallsTitle">EckOS Calls</strong><small id="cockpitCallsReadiness" role="status" aria-live="polite">Checking call service…</small></span>
-          <button id="cockpitCallsRefresh" type="button">Refresh</button>
+          <span class="cockpit-calls-header-actions"><button id="cockpitWorkdeskShortcut" type="button">Back to workdesk</button><button id="cockpitCallsRefresh" type="button">Refresh</button></span>
         </header>
         <div class="cockpit-calls-grid">
           <section><h2>Active call</h2><div id="cockpitActiveCall">No active call</div><button id="cockpitStopCall" type="button" hidden>Stop call</button></section>

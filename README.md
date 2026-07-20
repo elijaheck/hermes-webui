@@ -252,16 +252,20 @@ If an AI assistant is helping with install, reinstall, bootstrap, provider setup
 
 ### Hermes Cockpit and EckOS Calls
 
-- Open `/cockpit?tab=calls` for the focused native Hermes operator view and its
-  **EckOS Calls** tab. `/` remains the full Hermes WebUI; both routes use the same
+- Open `/cockpit` for the focused supervisor workdesk: **What needs you**, three
+  canonical project/worker views, and a thin live voice/prompt rail. Open
+  `/cockpit?tab=calls` for **EckOS Calls**. `/` remains the full Hermes WebUI; both use the same
   sessions, approvals, tasks, Kanban, cron, MCP, skills, Computer Use, and runtime state.
+- The phone icon beside Chat in the native sidebar opens Cockpit in the same
+  origin and preserves the active profile and session context.
 - The browser calls only authenticated same-origin WebUI endpoints. The WebUI server
   proxies a fixed loopback-only EckOS call service with `ECKOS_INTERNAL_API_TOKEN`;
   no EckOS credential or loopback address enters static JavaScript or browser storage.
 - EckOS supplies browser and phone call lifecycle, providers, transcripts, interruption,
   quiet hours, cooldowns, and one-time call approvals.
-  Spoken agent work enters the existing Hermes session and cannot bypass native
-  approval or clarification cards.
+  Spoken agent work enters the existing Hermes session. Voice approval is limited to
+  an exact allow-once or deny after a preview and separate explicit confirmation;
+  clarification, session-wide approval, and permanent approval remain manual.
 - Voice can ask Hermes to inspect the Mac, request guarded native-app interaction,
   or hand work to Codex/Claude/other agents. A requested live Screen panel shows
   same-origin ScreenCaptureKit snapshots while Hermes acts. Read-only inspection is

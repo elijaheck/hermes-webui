@@ -174,11 +174,14 @@ Open `/` first for the unchanged baseline, then `/cockpit` and
 In the Calls tab, verify that Prepare call reveals the masked one-time approval,
 only the explicit Confirm & call click dials, Cancel discards it, and call-policy
 changes round-trip through the same authenticated WebUI proxy.
-At each size, verify the real transcript precedes the bottom-anchored composer; the
-voice orb starts idle and reaches Listening after permission; live activity is the native run projection; and
-approval and clarification cards remain visible and require the same explicit human
-actions. Select a different session, reload, and confirm the URL stays in Cockpit mode
-and restores the same session.
+At each size, verify the thin voice/prompt rail remains bottom-anchored; the voice orb
+starts idle and reaches Listening after permission; the three selectors contain
+canonical registry projects; each bay names its worker/session rather than repeating the
+selected project name; and work views identify recent or live session activity without
+claiming three physical screens. Approval and clarification cards must be the one native
+pair relocated into **What needs you**, not cloned copies. Select a different project,
+reload, and confirm all three selections persist. Open a worker and confirm the lead
+Cockpit session remains active in its original tab.
 
 Rollback before merge is removal of the feature branch/worktree. No schema or state
 migration is involved, and these isolated checks must not start, stop, or modify the
@@ -1829,8 +1832,8 @@ environment, start Hermes WebUI, and open
 `http://127.0.0.1:8787/cockpit?tab=calls`. A physical iPhone needs an authenticated HTTPS
 origin for microphone permission.
 
-- [ ] The orb is obvious at the upper right and the transcript/composer stays
-  at the bottom at desktop, notch, and phone widths.
+- [ ] The orb is integrated into the thin bottom voice/prompt rail at desktop,
+  notch, and phone widths.
 - [ ] Allowing microphone access reaches Listening; denying it shows a retryable
   error without exposing a credential.
 - [ ] Speech produces low-latency audio and a bounded caption; interruption
@@ -1842,7 +1845,13 @@ origin for microphone permission.
 - [ ] “Show agents and MCP” changes only allowlisted dashboard panels; an
   unknown panel fails closed.
 - [ ] Spoken Hermes work appears in the same durable session after reload.
-- [ ] Visible approval or clarification cards cannot be resolved by voice.
+- [ ] Ask to approve a visible command. Voice repeats the exact description and
+  command but does not act on the preview turn. A separate “approve once” resolves
+  that same id; “allow session” and “always allow” are unavailable by voice.
+- [ ] Preview an approval, then replace/expire it before confirming. The stale
+  confirmation fails closed. A vague “yes” also fails with confirmation required.
+- [ ] Say “deny this” only after an exact deny preview and confirm the same pending
+  approval is denied. Clarification cards remain voice-ineligible.
 - [ ] “What is on my Mac screen?” opens the Screen panel, shows a same-origin
   capture, and produces a read-only Hermes `computer_use` observation.
 - [ ] The browser network log never contains `127.0.0.1:8731` or a local screen
