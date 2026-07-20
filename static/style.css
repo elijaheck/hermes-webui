@@ -6605,6 +6605,14 @@ main.main > .main-view:not([id="mainChat"]):not([id="mainSettings"]) .main-view-
 :root[data-mode="cockpit"] .cockpit-calls-grid h2{margin:0 0 8px;color:var(--text);font-size:11px;font-weight:650;}
 :root[data-mode="cockpit"] #cockpitRecentCalls{margin:0;padding-left:18px;}
 :root[data-mode="cockpit"] #cockpitCallTranscript{max-height:160px;overflow:auto;white-space:pre-wrap;}
+:root[data-mode="cockpit"] .cockpit-call-controls{display:flex;flex-direction:column;gap:7px;}
+:root[data-mode="cockpit"] .cockpit-call-controls label{color:var(--muted);font-size:10px;}
+:root[data-mode="cockpit"] .cockpit-call-controls input{min-width:0;height:32px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font:inherit;font-size:11px;}
+:root[data-mode="cockpit"] .cockpit-call-controls input:focus{outline:2px solid var(--blue,var(--accent));outline-offset:1px;}
+:root[data-mode="cockpit"] #cockpitCallApproval{display:flex;flex-direction:column;gap:7px;padding:8px;border:1px solid color-mix(in srgb,var(--blue,var(--accent)) 45%,var(--border));border-radius:var(--radius-sm);background:color-mix(in srgb,var(--blue,var(--accent)) 8%,var(--surface));}
+:root[data-mode="cockpit"] #cockpitCallApproval[hidden]{display:none;}
+:root[data-mode="cockpit"] #cockpitCallApproval span{display:flex;gap:6px;flex-wrap:wrap;}
+:root[data-mode="cockpit"] .cockpit-policy-grid{display:grid;grid-template-columns:minmax(72px,.8fr) minmax(90px,1.2fr);align-items:center;gap:6px 8px;}
 :root[data-mode="cockpit"] .messages-shell{min-height:0;}
 :root[data-mode="cockpit"] .composer-wrap{margin-top:auto;}
 

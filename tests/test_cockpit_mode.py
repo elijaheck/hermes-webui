@@ -64,6 +64,9 @@ def test_cockpit_markup_declares_calls_as_native_tab():
     assert 'id="cockpitCallsPanel"' in source
     assert 'src="static/cockpit.js?v=__WEBUI_VERSION__"' in source
     assert 'id="cockpitRuntimeIdentity"' in source
+    assert 'id="cockpitPrepareCall"' in source
+    assert 'id="cockpitConfirmCall"' in source
+    assert 'id="cockpitSaveCallPolicy"' in source
 
 
 def test_cockpit_runtime_identity_keeps_source_and_deployed_runtime_distinct(monkeypatch):

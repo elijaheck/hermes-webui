@@ -171,6 +171,9 @@ python3 bootstrap.py
 Open `/` first for the unchanged baseline, then `/cockpit` and
 `/cockpit?session=<session_id>`. Confirm `/eckos` redirects to
 `/cockpit?tab=calls`. Capture desktop, notch-width, and phone-width evidence.
+In the Calls tab, verify that Prepare call reveals the masked one-time approval,
+only the explicit Confirm & call click dials, Cancel discards it, and call-policy
+changes round-trip through the same authenticated WebUI proxy.
 At each size, verify the real transcript precedes the bottom-anchored composer; the
 voice orb starts idle and reaches Listening after permission; live activity is the native run projection; and
 approval and clarification cards remain visible and require the same explicit human
