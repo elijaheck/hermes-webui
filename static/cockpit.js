@@ -168,7 +168,7 @@
   });
 
   if(global.document){
-    if(global.document.readyState==='loading') global.document.addEventListener('DOMContentLoaded',initialize,{once:true});
-    else initialize();
+    if(global.document.readyState==='complete') initialize();
+    else global.document.addEventListener('DOMContentLoaded',initialize,{once:true});
   }
 })(typeof window!=='undefined'?window:this);

@@ -233,6 +233,56 @@ console.log(JSON.stringify({{
     assert payload["unchanged"] is True
 
 
+def test_cockpit_waits_for_dom_ready_before_using_shared_api_helper():
+    source = _cockpit_js()
+    payload = _run_node(
+        f"""
+let domReady = null;
+const nodes = {{
+  cockpitCallsPanel: {{ hidden: false, setAttribute() {{}}, getAttribute() {{ return null; }} }},
+  cockpitCallsReadiness: {{ textContent: '' }},
+  cockpitRuntimeIdentity: {{ textContent: '', title: '' }},
+}};
+global.document = {{
+  readyState: 'interactive',
+  documentElement: {{ dataset: {{ mode: 'cockpit' }} }},
+  addEventListener(name, callback) {{ if (name === 'DOMContentLoaded') domReady = callback; }},
+  getElementById(id) {{ return nodes[id] || null; }},
+  querySelector() {{ return null; }},
+}};
+global.window = {{
+  document: global.document,
+  location: {{ href: 'https://example.test/cockpit?tab=calls' }},
+  addEventListener() {{}},
+  clearTimeout() {{}},
+  setTimeout() {{ return 1; }},
+}};
+(0, eval)({source!r});
+const calls = [];
+window.api = async (path) => {{
+  calls.push(path);
+  if (path === '/api/cockpit/runtime-identity') return {{ webui: {{ version: 'test', revision: 'abc' }}, hermes_runtime: {{ version: 'test', revision: 'def' }} }};
+  return {{ readiness: {{ ready: false, reason: 'not configured' }}, recent_calls: [] }};
+}};
+if (domReady) domReady();
+await Promise.resolve();
+await Promise.resolve();
+console.log(JSON.stringify({{
+  domReadyRegistered: typeof domReady === 'function',
+  calls,
+  readiness: nodes.cockpitCallsReadiness.textContent,
+  runtime: nodes.cockpitRuntimeIdentity.textContent,
+}}));
+"""
+    )
+    assert payload == {
+        "domReadyRegistered": True,
+        "calls": ["/api/cockpit/calls", "/api/cockpit/runtime-identity"],
+        "readiness": "not configured",
+        "runtime": "WebUI test @ abc · Hermes test @ def",
+    }
+
+
 def test_cockpit_projection_reuses_hermes_dom_and_only_bridges_realtime_offer():
     source = _cockpit_js()
     for selector in (
