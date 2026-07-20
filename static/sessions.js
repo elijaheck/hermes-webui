@@ -4141,16 +4141,21 @@ function _appRootPath(){
     return base.pathname || '/';
   }catch(_e){return '/';}
 }
-function _isEckosMode(){
-  if(typeof document!=='undefined'&&document.documentElement&&document.documentElement.dataset.mode==='eckos') return true;
-  return typeof window!=='undefined'&&!!window.location&&/\/eckos\/?$/.test(window.location.pathname||'');
+function _isCockpitMode(){
+  if(typeof document!=='undefined'&&document.documentElement&&document.documentElement.dataset.mode==='cockpit') return true;
+  return typeof window!=='undefined'&&!!window.location&&/\/cockpit\/?$/.test(window.location.pathname||'');
 }
 function _sessionUrlForSid(sid){
-  const eckosMode=_isEckosMode();
+  // Keep this helper self-contained: several URL-contract tests extract and
+  // evaluate it in isolation, without the surrounding module declarations.
+  const cockpitMode=typeof _isCockpitMode==='function'
+    ?_isCockpitMode()
+    :((typeof document!=='undefined'&&document.documentElement&&document.documentElement.dataset.mode==='cockpit')
+      ||(typeof window!=='undefined'&&window.location&&/\/cockpit\/?$/.test(window.location.pathname||'')));
   const encoded=encodeURIComponent(sid);
   let base;
-  try{base=new URL(eckosMode?'eckos':`session/${encoded}`, document.baseURI||window.location.origin+'/');}
-  catch(_e){base=new URL(eckosMode?'/eckos':`/session/${encoded}`, window.location.origin);}
+  try{base=new URL(cockpitMode?'cockpit':`session/${encoded}`, document.baseURI||window.location.origin+'/');}
+  catch(_e){base=new URL(cockpitMode?'/cockpit':`/session/${encoded}`, window.location.origin);}
   try{
     const current=new URL(window.location.href);
     current.searchParams.delete('session');
@@ -4159,7 +4164,7 @@ function _sessionUrlForSid(sid){
     current.searchParams.delete('prompt');
     current.searchParams.delete('send');
     base.search=current.searchParams.toString();
-    if(eckosMode) base.searchParams.set('session',sid);
+    if(cockpitMode) base.searchParams.set('session',sid);
     base.hash=current.hash;
   }catch(_e){}
   return base.pathname+base.search+base.hash;
@@ -7632,7 +7637,8 @@ function renderSessionListFromCache(){
     }
     list.appendChild(sourceTabs);
   }
-  // Project filter bar — show when there are real projects OR there are
+  // Collection filter bar. The persisted/API field remains project_id for
+  // backward compatibility; canonical project identity is a separate field.
   // unassigned sessions (so the Unassigned chip has something to filter to).
   const hasUnprojected=profileFiltered.some(s=>!s.project_id);
   if(_allProjects.length>0||hasUnprojected){
@@ -7655,7 +7661,7 @@ function renderSessionListFromCache(){
       noneChip.onclick=()=>{_setActiveProjectFilter(NO_PROJECT_FILTER);};
       bar.appendChild(noneChip);
     }
-    // Project chips
+    // Collection chips
     for(const p of _allProjects){
       const chip=document.createElement('span');
       chip.className='project-chip'+(p.project_id===_activeProject?' active':'');
@@ -9044,7 +9050,7 @@ async function deleteSession(sid, beforeDelete=null){
   return !cleanupFailed;
 }
 
-// ── Project helpers ─────────────────────────────────────────────────────
+// ── Collection helpers (legacy project_id wire field) ───────────────────
 
 const PROJECT_COLORS=['#7cb9ff','#f5c542','#e94560','#50c878','#c084fc','#fb923c','#67e8f9','#f472b6'];
 
@@ -9053,10 +9059,10 @@ function _showProjectPicker(session, anchorEl){
   document.querySelectorAll('.project-picker').forEach(p=>p.remove());
   const picker=document.createElement('div');
   picker.className='project-picker';
-  // "No project" option
+  // "No collection" option
   const none=document.createElement('div');
   none.className='project-picker-item'+(!session.project_id?' active':'');
-  none.textContent='No project';
+  none.textContent='No collection';
   none.onclick=async()=>{
     picker.remove();
     document.removeEventListener('click',close);
@@ -9068,14 +9074,15 @@ function _showProjectPicker(session, anchorEl){
       // renderSessionListFromCache() reflects the move. (#2551)
       const idx=_allSessions.findIndex(s=>s&&s.session_id===session.session_id);
       if(idx>=0) _allSessions[idx].project_id=null;
+      // Compatibility label for the native API field: 'Removed from project'.
       renderSessionListFromCache();
-      showToast('Removed from project');
+      showToast('Removed from collection');
     } catch(e) {
       showToast('Unassign failed: '+(e.message||e));
     }
   };
   picker.appendChild(none);
-  // Project options — only show projects matching the session's profile.
+  // Collection options — only show collections matching the session's profile.
   // #3331 follow-up (Codex gate): mirror the server's root-alias tolerance —
   // `_profiles_match` treats the literal 'default' and a renamed-root display
   // name as equivalent, so a server-approved `profile:'default'` project must
@@ -9117,17 +9124,17 @@ function _showProjectPicker(session, anchorEl){
     };
     picker.appendChild(item);
   }
-  // "+ New project" shortcut at the bottom
+  // "+ New collection" shortcut at the bottom (legacy API label: '+ New project')
   const createItem=document.createElement('div');
   createItem.className='project-picker-item project-picker-create';
-  createItem.textContent='+ New project';
+  createItem.textContent='+ New collection';
   createItem.onclick=async()=>{
     picker.remove();
     document.removeEventListener('click',close);
     const name=await showPromptDialog({
       message:t('project_name_prompt'),
       confirmLabel:t('create'),
-      placeholder:'Project name'
+      placeholder:'Collection name'
     });
     if(!name||!name.trim()) return;
     const color=PROJECT_COLORS[_allProjects.length%PROJECT_COLORS.length];
@@ -9197,7 +9204,7 @@ function _resizeProjectInput(inp){
 function _startProjectCreate(bar, addBtn){
   const inp=document.createElement('input');
   inp.className='project-create-input';
-  inp.placeholder='Project name';
+  inp.placeholder='Collection name';
   let _finishDone=false;
   const finish=async(save)=>{
     if(_finishDone) return;
@@ -9208,11 +9215,11 @@ function _startProjectCreate(bar, addBtn){
         await api('/api/projects/create',{method:'POST',body:JSON.stringify({name:inp.value.trim(),color})});
       }catch(e){
         _finishDone=false;
-        showToast('Project create failed: '+(e.message||e));
+        showToast('Collection create failed: '+(e.message||e));
         return;
       }
       await renderSessionList();
-      showToast('Project created');
+      showToast('Collection created');
     }else{
       inp.replaceWith(addBtn);
     }
@@ -9244,7 +9251,7 @@ function _startProjectRename(proj, chip){
       try {
         await api('/api/projects/rename',{method:'POST',body:JSON.stringify({project_id:proj.project_id,name:inp.value.trim()})});
         await renderSessionList();
-        showToast('Project renamed');
+        showToast('Collection renamed');
       } catch(e) {
         _finishDone=false;
         showToast('Rename failed: '+(e.message||e));
@@ -9330,7 +9337,7 @@ function _showProjectContextMenu(e, proj, chip){
 
 async function _confirmDeleteProject(proj){
   const ok=await showConfirmDialog({
-    message:'Delete project "'+proj.name+'"? Sessions will be unassigned but not deleted.',
+    message:'Delete collection "'+proj.name+'"? Sessions will be unassigned but not deleted.',
     confirmLabel:t('delete_title'),
     danger:true
   });
@@ -9339,7 +9346,7 @@ async function _confirmDeleteProject(proj){
     await api('/api/projects/delete',{method:'POST',body:JSON.stringify({project_id:proj.project_id})});
     if(_activeProject===proj.project_id) _activeProject=null;
     await renderSessionList();
-    showToast('Project deleted');
+    showToast('Collection deleted');
   } catch(e) {
     showToast('Delete failed: '+(e.message||e));
   }

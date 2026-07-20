@@ -1191,7 +1191,7 @@ class Session:
                  model_provider=None,
                  messages=None, created_at=None, updated_at=None,
                  tool_calls=None, pinned: bool=False, archived: bool=False,
-                 project_id: str=None, profile=None,
+                 project_id: str=None, canonical_project_id: str=None, profile=None,
                  input_tokens: int=0, output_tokens: int=0, estimated_cost=None,
                  cache_read_tokens: int=0, cache_write_tokens: int=0,
                  personality=None,
@@ -1257,6 +1257,7 @@ class Session:
         self.pinned = bool(pinned)
         self.archived = bool(archived)
         self.project_id = project_id or None
+        self.canonical_project_id = canonical_project_id or kwargs.get('canonical_project_id') or None
         self.profile = profile
         self.input_tokens = input_tokens or 0
         self.output_tokens = output_tokens or 0
@@ -1370,7 +1371,7 @@ class Session:
         # Fields are listed in the order they should appear in the JSON file.
         METADATA_FIELDS = [
             'session_id', 'title', 'workspace', 'model', 'model_provider', 'model_explicit_pick_signature', 'created_at', 'updated_at',
-            'pinned', 'archived', 'project_id', 'profile',
+            'pinned', 'archived', 'project_id', 'canonical_project_id', 'profile',
             'input_tokens', 'output_tokens', 'estimated_cost',
             'cache_read_tokens', 'cache_write_tokens',
             'personality', 'active_stream_id',
@@ -1722,6 +1723,7 @@ class Session:
             'pinned': self.pinned,
             'archived': self.archived,
             'project_id': self.project_id,
+            'canonical_project_id': self.canonical_project_id,
             'profile': self.profile,
             'input_tokens': self.input_tokens,
             'output_tokens': self.output_tokens,
@@ -4650,7 +4652,7 @@ def _profile_default_model_state(profile=None):
     return default_model or get_effective_default_model(), default_provider
 
 
-def new_session(workspace=None, model=None, profile=None, model_provider=None, project_id=None, worktree_info=None, enabled_toolsets=None):
+def new_session(workspace=None, model=None, profile=None, model_provider=None, project_id=None, canonical_project_id=None, worktree_info=None, enabled_toolsets=None):
     """Create a new in-memory session.
 
     The session lives in the SESSIONS dict only — no disk write happens until
@@ -4692,12 +4694,19 @@ def new_session(workspace=None, model=None, profile=None, model_provider=None, p
 
     wt = worktree_info if isinstance(worktree_info, dict) else None
     workspace_path = (wt.get('path') if wt and wt.get('path') else workspace) if wt else workspace
+    if canonical_project_id is None:
+        try:
+            from api.canonical_projects import resolve_project_id
+            canonical_project_id = resolve_project_id(wt.get('repo_root') if wt else workspace_path)
+        except (OSError, ValueError):
+            canonical_project_id = None
     s = Session(
         workspace=workspace_path or get_last_workspace(),
         model=effective_model,
         model_provider=effective_model_provider,
         profile=profile,
         project_id=project_id,
+        canonical_project_id=canonical_project_id,
         personality=None,
         worktree_path=wt.get('path') if wt else None,
         worktree_branch=wt.get('branch') if wt else None,
@@ -5157,7 +5166,7 @@ def _refresh_index_rows_from_sidecar_metadata(
         refreshed = dict(session)
         for key in (
             'message_count', 'updated_at', 'last_message_at', 'title', 'workspace',
-            'model', 'model_provider', 'created_at', 'pinned', 'archived', 'project_id',
+            'model', 'model_provider', 'created_at', 'pinned', 'archived', 'project_id', 'canonical_project_id',
             'profile', 'pre_compression_snapshot', 'parent_session_id', 'source_tag',
             'raw_source', 'session_source', 'source_label', 'active_stream_id',
             'has_pending_user_message', 'pending_user_message', 'pending_started_at',

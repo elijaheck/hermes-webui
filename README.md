@@ -250,15 +250,16 @@ If an AI assistant is helping with install, reinstall, bootstrap, provider setup
 - Appends to existing textarea content (doesn't replace)
 - Hidden when browser doesn't support Web Speech API (Chrome, Edge, Safari)
 
-### EckOS Realtime dashboard
+### Hermes Cockpit and EckOS Calls
 
-- Open `/eckos` for the voice-first native Hermes dashboard: orb/status at the
-  upper right, the real Hermes transcript and composer below, and a closed set
-  of live panels that voice can reorder and focus.
-- Set `OPENAI_API_KEY` only in the server environment or server-side `.env`.
-  The browser sends its WebRTC SDP offer to Hermes; the key never enters static
-  JavaScript or browser storage.
-- EckOS uses `gpt-realtime-2.1` with semantic VAD and full-duplex WebRTC audio.
+- Open `/cockpit?tab=calls` for the focused native Hermes operator view and its
+  **EckOS Calls** tab. `/` remains the full Hermes WebUI; both routes use the same
+  sessions, approvals, tasks, Kanban, cron, MCP, skills, Computer Use, and runtime state.
+- The browser calls only authenticated same-origin WebUI endpoints. The WebUI server
+  proxies a fixed loopback-only EckOS call service with `ECKOS_INTERNAL_API_TOKEN`;
+  no EckOS credential or loopback address enters static JavaScript or browser storage.
+- EckOS supplies browser and phone call lifecycle, providers, transcripts, interruption,
+  quiet hours, cooldowns, and one-time call approvals.
   Spoken agent work enters the existing Hermes session and cannot bypass native
   approval or clarification cards.
 - Voice can ask Hermes to inspect the Mac, request guarded native-app interaction,
@@ -267,8 +268,8 @@ If an AI assistant is helping with install, reinstall, bootstrap, provider setup
   immediate; every state-changing Computer Use step goes through the normal Hermes
   approval card.
 - Remote phones need an authenticated HTTPS origin for microphone permission.
-  See [ARCHITECTURE.md](ARCHITECTURE.md#eckos-realtime-voice) and
-  [TESTING.md](TESTING.md#eckos-realtime-voice-verification) for lifecycle,
+  See [ARCHITECTURE.md](ARCHITECTURE.md#eckos-calls-voice-in-hermes-cockpit) and
+  [TESTING.md](TESTING.md#eckos-calls-voice-verification) for lifecycle,
   recovery, latency notes, and the validation checklist.
 
 ### Profiles

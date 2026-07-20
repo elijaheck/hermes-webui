@@ -31,7 +31,7 @@ import socket as _socket
 from collections import defaultdict, deque
 from pathlib import Path
 from contextlib import closing
-from urllib.parse import parse_qs, quote, unquote, urljoin, urlsplit
+from urllib.parse import parse_qs, parse_qsl, quote, unquote, urlencode, urljoin, urlsplit
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, HTTPSHandler, ProxyHandler, Request, build_opener
 from api.agent_runtime import (
@@ -11957,8 +11957,30 @@ def handle_get(handler, parsed) -> bool:
     if proxy_result is not False:
         return proxy_result
 
-    if parsed.path == "/api/eckos/screen":
-        from api.eckos_computer import handle_screen
+    if parsed.path in ("/eckos", "/eckos/"):
+        params = [("tab", "calls"), *parse_qsl(parsed.query, keep_blank_values=True)]
+        location = "/cockpit?" + urlencode(params)
+        handler.send_response(307)
+        handler.send_header("Location", location)
+        handler.send_header("Cache-Control", "no-store")
+        handler.send_header("Sunset", "Wed, 19 Aug 2026 23:59:59 GMT")
+        handler.send_header("Link", '</cockpit?tab=calls>; rel="successor-version"')
+        handler.send_header("Content-Length", "0")
+        handler.end_headers()
+        return True
+
+    if parsed.path.startswith("/api/cockpit/calls"):
+        from api.eckos_calls import proxy_call_request
+
+        return proxy_call_request(handler, parsed.path, "GET")
+
+    if parsed.path == "/api/cockpit/runtime-identity":
+        from api.runtime_identity import runtime_identity
+
+        return j(handler, runtime_identity())
+
+    if parsed.path == "/api/cockpit/screen":
+        from api.cockpit_computer import handle_screen
 
         return handle_screen(handler)
 
@@ -11978,7 +12000,7 @@ def handle_get(handler, parsed) -> bool:
     if parsed.path in ("/session/manifest.json", "/session/manifest.webmanifest"):
         return _serve_manifest(handler)
 
-    if parsed.path in ("/", "/index.html", "/eckos", "/eckos/") or parsed.path.startswith(
+    if parsed.path in ("/", "/index.html", "/cockpit", "/cockpit/") or parsed.path.startswith(
         "/session/"
     ):
         try:
@@ -13186,6 +13208,14 @@ def handle_get(handler, parsed) -> bool:
             "other_profile_count": other_profile_count,
         })
 
+    if parsed.path == "/api/canonical-projects":
+        try:
+            from api.canonical_projects import load_canonical_projects
+
+            return j(handler, {"projects": load_canonical_projects(), "read_only": True})
+        except (OSError, ValueError):
+            return j(handler, {"error": "Canonical project registry is unavailable"}, status=503)
+
     if parsed.path == "/api/prompts":
         return j(handler, {"prompts": _load_saved_prompts()})
 
@@ -13912,8 +13942,17 @@ def handle_post(handler, parsed) -> bool:
             diag.finish()
         return proxy_result
 
+    if parsed.path.startswith("/api/cockpit/calls"):
+        from api.eckos_calls import proxy_call_request
+
+        try:
+            return proxy_call_request(handler, parsed.path, "POST")
+        finally:
+            if diag:
+                diag.finish()
+
     # Raw SDP runs after auth/CSRF enforcement and before shared JSON parsing.
-    if parsed.path == "/api/eckos/realtime/calls":
+    if parsed.path == "/api/cockpit/realtime/calls":
         try:
             from api.eckos_realtime import handle_realtime_call
             return handle_realtime_call(handler)
@@ -13963,8 +14002,8 @@ def handle_post(handler, parsed) -> bool:
             diag.finish()
         return True
 
-    if parsed.path == "/api/eckos/screen/capture":
-        from api.eckos_computer import handle_capture
+    if parsed.path == "/api/cockpit/screen/capture":
+        from api.cockpit_computer import handle_capture
 
         return handle_capture(handler)
 
@@ -14301,12 +14340,22 @@ def handle_post(handler, parsed) -> bool:
                 # thread the drain snapshot already missed).
                 if _register_background_commit_thread(t):
                     t.start()
+        requested_canonical_project_id = body.get("canonical_project_id") or None
+        if requested_canonical_project_id:
+            try:
+                from api.canonical_projects import canonical_project
+
+                if canonical_project(requested_canonical_project_id) is None:
+                    return bad(handler, "Canonical project not found", 404)
+            except (OSError, ValueError):
+                return j(handler, {"error": "Canonical project registry is unavailable"}, status=503)
         s = new_session(
             workspace=workspace,
             model=model,
             model_provider=model_provider,
             profile=body.get("profile") or None,
             project_id=body.get("project_id") or None,
+            canonical_project_id=requested_canonical_project_id,
             worktree_info=worktree_info,
             enabled_toolsets=enabled_toolsets,
         )
@@ -14322,6 +14371,32 @@ def handle_post(handler, parsed) -> bool:
             # client the session is plain so the UI doesn't assume isolation.
             payload["worktree_skipped"] = worktree_skipped
         return j(handler, payload)
+
+    if parsed.path == "/api/session/project-context":
+        try:
+            require(body, "session_id", "canonical_project_id")
+            from api.canonical_projects import canonical_project
+
+            project = canonical_project(body["canonical_project_id"])
+        except (OSError, ValueError):
+            return j(handler, {"error": "Canonical project registry is unavailable"}, status=503)
+        if not project:
+            return bad(handler, "Canonical project not found", 404)
+        try:
+            s = _get_or_materialize_session(body["session_id"])
+        except KeyError:
+            return bad(handler, "Session not found", 404)
+        except PermissionError:
+            return bad(handler, "Read-only imported sessions cannot be changed", 403)
+        with _get_session_agent_lock(body["session_id"]):
+            s.canonical_project_id = project["project_id"]
+            s.save()
+        publish_session_list_changed(
+            "session_project_context",
+            profile=getattr(s, "profile", None),
+            session_id=getattr(s, "session_id", body["session_id"]),
+        )
+        return j(handler, {"ok": True, "session": s.compact(), "project": project})
 
     if parsed.path == "/api/session/compression-recovery/start":
         return _handle_session_compression_recovery_start(handler, body)

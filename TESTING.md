@@ -134,9 +134,9 @@ matrix expands to additional behavior rows. The maintainer's private QA harness
 remains broader; later public slices will add session switching, reconnect/replay,
 cancellation, compression, and recovery.
 
-## EckOS mode verification
+## Hermes Cockpit mode verification
 
-EckOS is an alternate presentation of the existing shell. Run its focused contract
+Hermes Cockpit is an alternate presentation of the existing shell. Run its focused contract
 first, then the neighboring session, stream, action-required, delegated-session, MCP,
 and mobile tests:
 
@@ -162,18 +162,19 @@ For a live browser check, start an isolated instance on a non-production port.
 Do not use real `~/.hermes` state:
 
 ```bash
-HERMES_HOME=/tmp/hermes-webui-eckos-agent-home \
-HERMES_WEBUI_STATE_DIR=/tmp/hermes-webui-eckos-state \
+HERMES_HOME=/tmp/hermes-webui-cockpit-agent-home \
+HERMES_WEBUI_STATE_DIR=/tmp/hermes-webui-cockpit-state \
 HERMES_WEBUI_PORT=8789 \
 python3 bootstrap.py
 ```
 
-Open `/` first for the unchanged baseline, then `/eckos` and
-`/eckos?session=<session_id>`. Capture desktop, notch-width, and phone-width evidence.
+Open `/` first for the unchanged baseline, then `/cockpit` and
+`/cockpit?session=<session_id>`. Confirm `/eckos` redirects to
+`/cockpit?tab=calls`. Capture desktop, notch-width, and phone-width evidence.
 At each size, verify the real transcript precedes the bottom-anchored composer; the
 voice orb starts idle and reaches Listening after permission; live activity is the native run projection; and
 approval and clarification cards remain visible and require the same explicit human
-actions. Select a different session, reload, and confirm the URL stays in EckOS mode
+actions. Select a different session, reload, and confirm the URL stays in Cockpit mode
 and restores the same session.
 
 Rollback before merge is removal of the feature branch/worktree. No schema or state
@@ -1818,10 +1819,11 @@ Manual-only for Sprint 8:
 *Run: ./scripts/test.sh tests/ -v*
 *Source: <repo>/*
 
-## EckOS Realtime voice verification
+## EckOS Calls voice verification
 
-Set `OPENAI_API_KEY` in the server environment, start Hermes WebUI, and open
-`http://127.0.0.1:8787/eckos`. A physical iPhone needs an authenticated HTTPS
+Configure the EckOS call service and `ECKOS_INTERNAL_API_TOKEN` in the WebUI server
+environment, start Hermes WebUI, and open
+`http://127.0.0.1:8787/cockpit?tab=calls`. A physical iPhone needs an authenticated HTTPS
 origin for microphone permission.
 
 - [ ] The orb is obvious at the upper right and the transcript/composer stays
@@ -1853,7 +1855,7 @@ origin for microphone permission.
   panel gives a recoverable error while voice and normal Hermes chat keep working.
 - [ ] Conversation quality: invent a setting, character, conflict, and scene
   hook; verify concise continuity and honest delegation to Hermes.
-- [ ] Removing `OPENAI_API_KEY` yields a recoverable 503 voice error while the
+- [ ] Stopping EckOS or removing `ECKOS_INTERNAL_API_TOKEN` yields a recoverable 503 voice error while the
   rest of Hermes continues working.
 *Modules: ui.js, workspace.js, sessions.js, messages.js, panels.js, boot.js (app.js deleted)*
 

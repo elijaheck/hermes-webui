@@ -40,24 +40,24 @@ Instead, the footer exposes a single "Hermes WebUI" launch button that opens one
 control-center modal for global preferences, conversation import/export, and clear-conversation
 actions. The topbar remains focused on conversation context and the workspace/files toggle.
 
-## EckOS alternate presentation mode
+## Hermes Cockpit alternate presentation mode
 
-`/eckos` serves the same authenticated Hermes WebUI shell as `/`; it is an additive
+`/cockpit` serves the same authenticated Hermes WebUI shell as `/`; it is an additive
 presentation mode, not a second app or runtime. An inline pre-paint marker sets
-`document.documentElement.dataset.mode` before the stylesheet loads, and all EckOS
+`document.documentElement.dataset.mode` before the stylesheet loads, and all Cockpit
 layout rules are scoped to that marker. The ordinary `/` and `/session/<id>` routes
 retain their existing markup and behavior.
 
-The native Hermes ownership chain is unchanged in EckOS mode:
+The native Hermes ownership chain is unchanged in Cockpit mode:
 
-- `S` remains the active client state owner. `/eckos?session=<session_id>` is parsed
+- `S` remains the active client state owner. `/cockpit?session=<session_id>` is parsed
   by `_sessionIdFromLocation()` and restored through the existing `loadSession()` path.
 - The existing composer and `send()` implementation continue to post through
   `/api/chat/start`; the normal session SSE and run-journal replay paths render the
   conversation and activity.
 - The one `#approvalCard` and one `#clarifyCard` in the shared shell remain the only
-  action-required surfaces. `static/eckos.js` cannot respond to either one.
-- `static/eckos.js` is a presentation-only registry over existing DOM projections.
+  action-required surfaces. `static/cockpit.js` cannot respond to either one.
+- `static/cockpit.js` is a presentation-only registry over existing DOM projections.
   It creates no durable store, session, or parallel agent bridge. Unknown panel IDs fail closed
   before presentation state is changed.
 - Voice uses WebRTC through the server-held Realtime exchange. Agent, MCP, screen-inspection,
@@ -69,10 +69,21 @@ The native Hermes ownership chain is unchanged in EckOS mode:
 - WebUI installs a generic adapter into Hermes' existing `computer_use` approval callback.
   Read-only capture/list-apps remain immediate. Click, type, key, scroll, drag, and app-focus
   actions enter the existing Hermes approval queue/card and fail closed if that bridge errors.
+- The **EckOS Calls** tab is a projection of a separate loopback-only call service.
+  The browser talks only to authenticated same-origin `/api/cockpit/calls/*` routes;
+  the WebUI server holds the internal bearer token and fixed loopback destination.
+  Calls, transcripts, provider readiness, and call-safety policy remain EckOS state.
+  Projects, queues, tasks, approvals, agents, and durable memory remain Hermes/Brain state.
+- Canonical project identity is loaded read-only from the schema-v2 registry through
+  `api/canonical_projects.py` and persisted on sessions as `canonical_project_id`.
+  Workspace paths auto-bind to the most-specific canonical root. The older sidebar
+  grouping store remains intact and is presented as **collections**; its historical
+  `project_id` wire field is retained only for backward compatibility.
 
 The mode has no schema or runtime migration. Before merge, rollback is removal of the
 feature branch/worktree; after merge, revert the small mode commits and remove the
-`/eckos` route and static asset. Isolated validation uses a non-production port, so
+`/cockpit` route and static asset. `/eckos` is a 30-day compatibility redirect to
+`/cockpit?tab=calls`. Isolated validation uses a non-production port, so
 production port `8787` remains unchanged.
 
 ---
@@ -1696,16 +1707,18 @@ an existing workspace. Strict: path must be under home, in the saved workspace l
 The distinction matters because add uses permissive validation to avoid the circular
 dependency: you cannot get a path into the saved list if you need the saved list to add it.
 
-## EckOS Realtime voice
+## EckOS Calls voice in Hermes Cockpit
 
-`/eckos` is the same authenticated Hermes shell. The browser owns microphone
-permission, WebRTC, remote audio, bounded captions, and the `oai-events` data
-channel. The server owns `OPENAI_API_KEY` and exchanges the raw SDP offer at
-`POST /api/eckos/realtime/calls`; the credential never enters browser code.
+`/cockpit?tab=calls` is the same authenticated Hermes shell. The browser owns microphone
+permission, WebRTC, remote audio, bounded captions, and the provider event data
+channel. The WebUI server forwards the raw SDP offer from
+`POST /api/cockpit/realtime/calls` to the fixed loopback-only EckOS browser-session
+endpoint using `ECKOS_INTERNAL_API_TOKEN`; provider credentials stay in EckOS and
+neither the internal address nor credential enters browser code.
 
 The `gpt-realtime-2.1` session exposes a closed set of functions:
-`render_eckos_dashboard`, `send_to_hermes`, `inspect_mac_screen`, `control_mac`,
-and `delegate_to_agent`. Dashboard rendering is limited to the closed native panel
+`render_hermes_cockpit`, `send_to_hermes`, `inspect_mac_screen`, `control_mac`,
+and `delegate_to_agent`. Cockpit rendering is limited to the closed native tab
 registry. Every work function writes a bounded natural-language request into the
 existing Hermes composer/send path. Hermes remains the authority for durable context,
 agents, MCPs, Computer Use, Queue/Steer/Stop, approvals, and clarifications. The

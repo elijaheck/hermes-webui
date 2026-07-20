@@ -106,7 +106,7 @@ def _capture_payload(raw: bytes) -> dict | None:
         "width": width,
         "height": height,
         "captured_at": captured_at,
-        "screen_url": f"api/eckos/screen?v={parse.quote(captured_at, safe='')}",
+        "screen_url": f"api/cockpit/screen?v={parse.quote(captured_at, safe='')}",
     }
 
 

@@ -7,8 +7,8 @@
 <!-- base href enables subpath mount support; all static paths must stay relative (no leading slash).
      MUST appear before manifest/favicon links so browsers resolve relative URLs against the
      correct base when the page is served from /session/<id> routes. See #2226. -->
-<script>(function(){var path=location.pathname,clean=path.replace(/\/+$/,''),marker='/session/',i=path.indexOf(marker),p;i>=0?p=(path.slice(0,i+1)||'/'):/\/eckos$/.test(clean)?p=(clean.replace(/\/eckos$/,'/')||'/'):p=(path.endsWith('/')?path:(path.replace(/\/[^\/]*$/,'/')||'/'));document.write('<base href="'+location.origin+p+'">');})()</script>
-<script>(function(){if(/\/eckos\/?$/.test(location.pathname))document.documentElement.dataset.mode='eckos';})()</script>
+<script>(function(){var path=location.pathname,clean=path.replace(/\/+$/,''),marker='/session/',i=path.indexOf(marker),p;i>=0?p=(path.slice(0,i+1)||'/'):/\/cockpit$/.test(clean)?p=(clean.replace(/\/cockpit$/,'/')||'/'):p=(path.endsWith('/')?path:(path.replace(/\/[^\/]*$/,'/')||'/'));document.write('<base href="'+location.origin+p+'">');})()</script>
+<script>(function(){if(/\/cockpit\/?$/.test(location.pathname))document.documentElement.dataset.mode='cockpit';})()</script>
 <link rel="icon" type="image/svg+xml" href="static/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="static/favicon-32.png">
 <link rel="shortcut icon" href="static/favicon.ico">
@@ -430,37 +430,50 @@
       </div>
     </div>
     <div id="mainChat" class="main-view">
-    <section class="eckos-command-deck" id="eckosCommandDeck" aria-labelledby="eckosModeTitle">
-      <div class="eckos-command-copy">
-        <span class="eckos-kicker" data-i18n="eckos_mode_label">EckOS</span>
-        <h1 id="eckosModeTitle" data-i18n="eckos_native_session">Hermes native session</h1>
-        <p data-i18n="eckos_native_description">A focused view of this conversation and its live Hermes activity.</p>
+    <section class="cockpit-command-deck" id="cockpitCommandDeck" aria-labelledby="cockpitModeTitle">
+      <div class="cockpit-command-copy">
+        <span class="cockpit-kicker" data-i18n="cockpit_mode_label">Hermes Cockpit</span>
+        <h1 id="cockpitModeTitle" data-i18n="cockpit_native_session">Hermes operator session</h1>
+        <p data-i18n="cockpit_native_description">One focused view of native Hermes state, approvals, work, and EckOS calls.</p>
+        <small id="cockpitRuntimeIdentity" class="cockpit-runtime-identity" role="status">Loading deployed runtime identity…</small>
       </div>
-      <div class="eckos-voice-status" data-eckos-voice-state="idle" role="status" aria-live="polite">
-        <button class="eckos-voice-orb" id="eckosVoiceOrb" type="button" aria-label="Start live voice" title="Start live voice"><span></span></button>
-        <span class="eckos-voice-copy">
-          <span data-i18n="eckos_voice_label">Voice</span>
-          <strong id="eckosVoiceStatusText" data-i18n="eckos_voice_ready">Tap the orb to talk</strong>
-          <small id="eckosVoiceTranscript" class="eckos-voice-transcript"></small>
+      <div class="cockpit-voice-status" data-cockpit-voice-state="idle" role="status" aria-live="polite">
+        <button class="cockpit-voice-orb" id="cockpitVoiceOrb" type="button" aria-label="Start live voice" title="Start live voice"><span></span></button>
+        <span class="cockpit-voice-copy">
+          <span data-i18n="cockpit_voice_label">Voice</span>
+          <strong id="cockpitVoiceStatusText" data-i18n="cockpit_voice_ready">Tap the orb to talk</strong>
+          <small id="cockpitVoiceTranscript" class="cockpit-voice-transcript"></small>
         </span>
-        <span class="eckos-voice-controls"><button id="eckosVoiceMute" type="button" hidden>Mute</button><button id="eckosVoiceEnd" type="button" hidden>End</button></span>
-        <audio id="eckosVoiceAudio" autoplay hidden></audio>
+        <span class="cockpit-voice-controls"><button id="cockpitVoiceMute" type="button" hidden>Mute</button><button id="cockpitVoiceEnd" type="button" hidden>End</button></span>
+        <audio id="cockpitVoiceAudio" autoplay hidden></audio>
       </div>
-      <nav class="eckos-panel-nav" id="eckosPanelNav" aria-label="EckOS panels" data-i18n-aria-label="eckos_panels_label"></nav>
-      <section class="eckos-live-screen" hidden aria-hidden="true" id="eckosLiveScreen" aria-labelledby="eckosScreenTitle">
+      <nav class="cockpit-panel-nav" id="cockpitPanelNav" aria-label="EckOS panels" data-i18n-aria-label="cockpit_panels_label"></nav>
+      <section class="cockpit-calls" hidden aria-hidden="true" id="cockpitCallsPanel" data-cockpit-tab="calls" aria-labelledby="cockpitCallsTitle">
         <header>
-          <span class="eckos-screen-presence" aria-hidden="true"></span>
+          <span><strong id="cockpitCallsTitle">EckOS Calls</strong><small id="cockpitCallsReadiness" role="status" aria-live="polite">Checking call service…</small></span>
+          <button id="cockpitCallsRefresh" type="button">Refresh</button>
+        </header>
+        <div class="cockpit-calls-grid">
+          <section><h2>Active call</h2><div id="cockpitActiveCall">No active call</div><button id="cockpitStopCall" type="button" hidden>Stop call</button></section>
+          <section><h2>Recent calls</h2><ol id="cockpitRecentCalls"><li>No recent calls</li></ol></section>
+          <section><h2>Transcript</h2><div id="cockpitCallTranscript">Select a call to inspect its transcript.</div></section>
+          <section><h2>Provider &amp; policy</h2><div id="cockpitCallProvider">Provider unavailable</div><div id="cockpitCallPolicy">Quiet hours and approval policy unavailable</div></section>
+        </div>
+      </section>
+      <section class="cockpit-live-screen" hidden aria-hidden="true" id="cockpitLiveScreen" aria-labelledby="cockpitScreenTitle">
+        <header>
+          <span class="cockpit-screen-presence" aria-hidden="true"></span>
           <span>
-            <strong id="eckosScreenTitle" data-i18n="eckos_screen_title">Mac screen</strong>
-            <small id="eckosScreenStatus" role="status" aria-live="polite">Waiting for a screen request</small>
+            <strong id="cockpitScreenTitle" data-i18n="cockpit_screen_title">Mac screen</strong>
+            <small id="cockpitScreenStatus" role="status" aria-live="polite">Waiting for a screen request</small>
           </span>
-          <span class="eckos-screen-actions">
-            <button id="eckosScreenRefresh" type="button">Refresh</button>
-            <button id="eckosScreenClose" type="button" aria-label="Close Mac screen">Close</button>
+          <span class="cockpit-screen-actions">
+            <button id="cockpitScreenRefresh" type="button">Refresh</button>
+            <button id="cockpitScreenClose" type="button" aria-label="Close Mac screen">Close</button>
           </span>
         </header>
         <figure>
-          <img id="eckosScreenImage" alt="Latest Mac screen capture" decoding="async">
+          <img id="cockpitScreenImage" alt="Latest Mac screen capture" decoding="async">
         </figure>
       </section>
     </section>
@@ -1130,9 +1143,9 @@
             <div class="settings-field" style="margin-top:8px">
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
                 <input type="checkbox" id="settingsProjectQuickCreate" style="width:15px;height:15px;accent-color:var(--accent)">
-                <span data-i18n="settings_label_project_quick_create">Show per-project new-conversation buttons</span>
+                <span data-i18n="settings_label_project_quick_create">Show per-collection new-conversation buttons</span>
               </label>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_project_quick_create">When enabled, each project chip in the sidebar gets a + button to start a conversation in that project.</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="settings_desc_project_quick_create">When enabled, each collection chip in the sidebar gets a + button to start a conversation in that collection.</div>
             </div>
             <div class="settings-field" style="margin-top:8px">
               <label for="settingsStructuredCodeMode" data-i18n="settings_label_structured_code">JSON/YAML code blocks</label>
@@ -1791,7 +1804,7 @@
 </div>
 <div class="toast" id="toast"></div>
 <script src="static/i18n.js?v=__WEBUI_VERSION__" defer></script>
-<script src="static/eckos.js?v=__WEBUI_VERSION__" defer></script>
+<script src="static/cockpit.js?v=__WEBUI_VERSION__" defer></script>
 <script src="static/icons.js?v=__WEBUI_VERSION__" defer></script>
 <script src="static/assistant_turn_anchors.js?v=__WEBUI_VERSION__" defer></script>
 <script src="static/ui.js?v=__WEBUI_VERSION__" defer></script>
